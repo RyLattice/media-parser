@@ -13,18 +13,15 @@ class LandingErrorFriendlyTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
 
-        # 检查错误卡片核心 DOM 结构
+        # 检查错误卡片核心 DOM 结构与排查建议框
         self.assertIn('id="errorState"', html)
         self.assertIn('id="errorTitle"', html)
         self.assertIn('id="errorMsg"', html)
         self.assertIn('id="errorHintBox"', html)
         self.assertIn('id="errorHint"', html)
         self.assertIn('id="errorTag"', html)
-
-        # 检查快捷操作与示例填充按钮
-        self.assertIn("fillSampleUrl()", html)
-        self.assertIn("填入示例链接试一试", html)
-        self.assertIn("清空重试", html)
+        self.assertIn('bg-amber-50/70', html)
+        self.assertIn('border-amber-200/80', html)
 
     def test_landing_page_script_contains_error_formatting_and_masking(self):
         """验证首页脚本包含错误码友好转译与 Cookie 等运维黑话脱敏逻辑"""

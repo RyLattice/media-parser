@@ -17,7 +17,11 @@ def index():
                 return redirect(url_for('portal.overview'))
         return redirect(url_for('auth.login'))
 
+    api_enabled = setting('global_api_enabled', '1') == '1'
+    demo_enabled = setting('demo_enabled', '1') == '1'
     return render_template(
         'landing.html',
-        api_enabled=setting('global_api_enabled', '1') == '1',
+        api_enabled=api_enabled,
+        demo_enabled=demo_enabled,
+        parser_enabled=api_enabled and demo_enabled,
     )

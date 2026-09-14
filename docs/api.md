@@ -33,7 +33,7 @@
 ```bash
 curl -X POST "http://localhost:5000/api/v1/parse" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer mp_xxxxxx" \
+  -H "Authorization: Bearer mp-xxxxxx" \
   -d '{
     "text": "7.22 复制打开抖音，看看【测试的作品】https://v.douyin.com/iLxxxx/"
   }'

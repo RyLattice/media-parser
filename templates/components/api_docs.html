@@ -94,7 +94,7 @@
                                     <td class="px-3.5 py-2.5 text-slate-500 font-mono">Header</td>
                                     <td class="px-3.5 py-2.5 text-slate-500">String</td>
                                     <td class="px-3.5 py-2.5"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">推荐</span></td>
-                                    <td class="px-3.5 py-2.5 text-slate-600 leading-relaxed">标准 Bearer 授权凭据。格式：<code class="font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200/50">Bearer mp_xxxxxxxxxxxx</code></td>
+                                    <td class="px-3.5 py-2.5 text-slate-600 leading-relaxed">标准 Bearer 授权凭据。格式：<code class="font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200/50">Bearer mp-xxxxxxxxxxxx</code></td>
                                 </tr>
                                 <tr>
                                     <td class="px-3.5 py-2.5">
@@ -830,7 +830,7 @@
         const authRadio = document.querySelector('input[name="pg-auth-type"]:checked');
 
         const rawUrl = (urlInput ? urlInput.value : '').trim() || 'https://v.douyin.com/xxx/';
-        const rawKey = (chip && chip.style.display !== 'none' ? (chip.dataset.val || (keyInput ? keyInput.value : '')) : (keyInput ? keyInput.value : '')).trim() || 'mp_xxxxxxxxxxxxxxxx';
+        const rawKey = (chip && chip.style.display !== 'none' ? (chip.dataset.val || (keyInput ? keyInput.value : '')) : (keyInput ? keyInput.value : '')).trim() || 'mp-xxxxxxxxxxxxxxxx';
         const authType = authRadio ? authRadio.value : 'header';
         return { rawUrl, rawKey, authType, baseUrl: getBaseUrl() };
     }

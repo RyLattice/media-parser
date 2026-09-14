@@ -159,18 +159,18 @@ python app.py
 
 - **接口**：`GET /api/v1/parse`
 - **参数**：`url`，视频或图文分享链接
-- **鉴权**：`Authorization: Bearer mp_xxx`
+- **鉴权**：`Authorization: Bearer mp-xxx`
 
 ```bash
 curl --get 'http://localhost:8051/api/v1/parse' \
-  --header 'Authorization: Bearer mp_xxx' \
+  --header 'Authorization: Bearer mp-xxx' \
   --data-urlencode 'url=https://v.douyin.com/xxx/'
 ```
 
 也支持通过 `key` 查询参数传递密钥，但生产环境不推荐，因为密钥可能被浏览器或代理日志记录：
 
 ```text
-http://localhost:8051/api/v1/parse?key=mp_xxx&url=https://v.douyin.com/xxx/
+http://localhost:8051/api/v1/parse?key=mp-xxx&url=https://v.douyin.com/xxx/
 ```
 
 客户可在 `/console` 创建和停用 API Key；管理员可在 `/admin` 配置客户有效期、积分、QPS 与平台开关。
