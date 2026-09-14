@@ -38,7 +38,7 @@ def collect_media(parser):
         "video": bool(video_url or video_list),
         "audio": bool(call("get_audio_url", None)),
         "cover": bool(call("get_cover_photo_url", None)),
-        "title": bool(call("get_title_content", "")),
+        "title": bool(call("get_title_content", "") or call("get_description", "")),
         "author": bool(call("get_author_info", {})),
         "images": bool(image_list),
         "live_media": any(

@@ -32,7 +32,6 @@ class CookieManagerTest(unittest.TestCase):
         self.assertIn("doubao", PLATFORM_COOKIE_ALIASES)
         self.assertIn("yuanbao", PLATFORM_COOKIE_ALIASES)
         self.assertIn("pinduoduo", PLATFORM_COOKIE_ALIASES)
-        self.assertIn("bilibili", PLATFORM_COOKIE_ALIASES)
 
 
 if __name__ == "__main__":

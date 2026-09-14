@@ -112,10 +112,7 @@ XHS_COOKIE="a1=xxx; webId=yyy; web_session=zzz;"
 # 4. 抖音放映厅长视频 (可选，仅在解析 /lvdetail/ 长片时需要)
 DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
 
-# 5. 哔哩哔哩高码率 (可选，用于提取 1080P+ 高码率/4K 及大会员专区番剧)
-BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"
-
-# 6. 拼多多多多视频 (可选，用于多多短视频信息流原画解析)
+# 5. 拼多多多多视频 (可选，用于多多短视频信息流原画解析)
 PINDUODUO_COOKIE="PDDAccessToken=xxx;"
 ```
 

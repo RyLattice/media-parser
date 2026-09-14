@@ -18,8 +18,7 @@
   * 番剧/剧集长链：`https://www.bilibili.com/bangumi/play/ep1231565`、`https://www.bilibili.com/bangumi/play/ss12345`
   * 动态/Opus 链接：`https://t.bilibili.com/1245189054385881096` 或 `https://www.bilibili.com/opus/1245189054385881096`
 * **Cookie 依赖**：
-  * **公开视频基础流**：**无需 Cookie**（默认获取 720P/1080P HTML5 基础流）。
-  * **高清/大会员高码率流（可选）**：如需更高清晰度，可在 `.env` 中配置 `BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"`。
+  * **完全免 Cookie**：免登录直接获取 720P/1080P HTML5 基础流、番剧预告/公开剧集及图文动态。
 
 ---
 

@@ -5,8 +5,6 @@ from urllib.parse import parse_qs, urlparse
 
 from configs.logging_config import get_logger
 from src.parsers.base_parser import BaseParser
-from src.utils.cookie_manager import get_platform_cookie
-
 
 logger = get_logger(__name__)
 
@@ -16,7 +14,6 @@ class XiaoyunqueParser(BaseParser):
     """通过小云雀官方接口解析 xiaoyunque.jianying.com 分享链接。"""
 
     API_URL = "https://xiaoyunque.jianying.com/luckycat/cn/jianying/campaign/v1/pippit/share/landing_page"
-    BIZ_DETAIL_API = "https://xyq.jianying.com/api/biz/v1/inspiration/get_inspiration_detail"
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -25,14 +22,11 @@ class XiaoyunqueParser(BaseParser):
 
     def __init__(self, real_url):
         super().__init__(real_url)
-        self.cookie = get_platform_cookie("xiaoyunque")
         self.headers = {
             "Accept": "application/json, text/plain, */*",
             "Content-Type": "application/json",
             "User-Agent": self.USER_AGENT,
         }
-        if self.cookie:
-            self.headers["Cookie"] = self.cookie
         self.data = {
             "title": "",
             "desc": None,
@@ -66,28 +60,7 @@ class XiaoyunqueParser(BaseParser):
                 logger.warning(f"Unable to extract Xiaoyunque query parameters from URL: {self.real_url}")
                 return
 
-            # 1. 若配置了 Cookie，优先尝试请求高码率/下载流接口
-            inspiration_id = qdict.get("inspiration_id") or qdict.get("template_id")
-            if self.cookie and inspiration_id:
-                try:
-                    biz_resp = self.session.post(
-                        self.BIZ_DETAIL_API,
-                        headers=self.headers,
-                        json={"inspiration_id_list": [str(inspiration_id)]},
-                        timeout=15,
-                    )
-                    if biz_resp.status_code == 200:
-                        biz_data = biz_resp.json().get("data") or {}
-                        insp_list = biz_data.get("inspiration_list") or biz_data.get("inspirations") or []
-                        if insp_list and isinstance(insp_list[0], dict):
-                            formatted_biz = self._format_biz_data(insp_list[0])
-                            if formatted_biz.get("video_url") or formatted_biz.get("image_list"):
-                                self.data.update(formatted_biz)
-                                return
-                except Exception as biz_exc:
-                    logger.debug(f"Xiaoyunque biz detail query failed, falling back to landing_page: {biz_exc}")
-
-            # 2. 公开免登录 H5 landing_page 接口兜底
+            # 公开免登录 H5 landing_page 接口
             response = self.session.post(
                 self.API_URL,
                 headers=self.headers,
@@ -102,51 +75,6 @@ class XiaoyunqueParser(BaseParser):
             self.data.update(self._format_data(payload.get("data") or {}))
         except Exception as exc:
             logger.exception(f"Failed to parse Xiaoyunque share: {exc}")
-
-    @classmethod
-    def _format_biz_data(cls, insp):
-        author_info = insp.get("author_info") or {}
-        wm_video = insp.get("watermark_video_info") or {}
-        primary_video = (
-            wm_video.get("brand_user_url")
-            or wm_video.get("download_url")
-            or wm_video.get("brand_url")
-            or wm_video.get("share_url")
-            or wm_video.get("ai_url")
-        )
-        video_list = []
-        for key in ("brand_user_url", "download_url", "brand_url", "share_url", "ai_url"):
-            val = wm_video.get(key)
-            if val and val not in video_list:
-                video_list.append(val)
-
-        title = insp.get("title") or insp.get("prompt")
-        desc = insp.get("prompt") or insp.get("title")
-
-        # 图片信息
-        wm_image = insp.get("watermark_image_info") or {}
-        image_list = []
-        for key in ("download_url", "brand_url", "share_url", "ai_url", "origin_url"):
-            val = wm_image.get(key)
-            if val and val not in image_list:
-                image_list.append(val)
-
-        cover_info = insp.get("cover_info") or {}
-        cover_url = cover_info.get("cover_image_url") or insp.get("cover_url") or insp.get("cover")
-
-        return {
-            "title": title,
-            "desc": desc,
-            "video_url": primary_video,
-            "video_list": video_list,
-            "cover_url": cover_url,
-            "author": {
-                "nickname": author_info.get("nickName") or author_info.get("nickname") or "",
-                "author_id": str(author_info.get("id") or insp.get("uid") or ""),
-                "avatar": author_info.get("avatar") or author_info.get("avatar_url") or "",
-            },
-            "image_list": image_list,
-        }
 
     @classmethod
     def _format_data(cls, data):

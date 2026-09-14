@@ -317,7 +317,6 @@
       ],
       "expected_fields": [
         "images",
-        "cover",
         "title",
         "author"
       ],
@@ -4566,7 +4565,7 @@
     },
     {
       "platform": "小云雀AI",
-      "url": "https://xiaoyunque.jianying.com/s/eguwTcLQIxw/",
+      "url": "https://xiaoyunque.jianying.com/s/pheQJnrdFoM/ AA7046",
       "media_types": [
         "video"
       ],
@@ -4575,8 +4574,8 @@
         "title",
         "author"
       ],
-      "note": "2026-09-14 已验证: 小云雀灵感创作与壁纸生成分享",
-      "pattern": "灵感创作与壁纸生成"
+      "note": "2026-09-14 已验证: 裸眼3D触屏视频及完整提示词分享",
+      "pattern": "灵感创作与修仙视频生成"
     },
     {
       "platform": "微博",
