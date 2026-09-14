@@ -65,10 +65,14 @@ media-parser/
 │   ├── reverse-guide.md       # 通用逆向方法论 (抓包/SSR/JS签名提取)
 │   ├── testing.md             # 完整测试规范与回归手册
 │   └── parsers/               # 平台逆向分析手册
+├── scripts/                   # 运维与工具脚本
+│   └── set_cookie.py          # 命令行 Cookie 查看与设置工具
 ├── src/                       # 核心业务逻辑
 │   ├── api/                   # RESTful API 路由 (/api/parse, /api/health)
-│   ├── web/                   # Demo 体验页与交互蓝图
+│   ├── database/              # SQLite 存储管理 (系统设置/用户/API Key/调用日志)
+│   ├── web/                   # Demo 体验页与后台管理蓝图 (admin)
 │   ├── parsers/               # 各平台解析器模块 (核心解析逻辑)
+│   ├── utils/                 # 工具层 (CookieManager 统一凭据管理器)
 │   └── parser_factory.py      # 工厂分发器 (解析器动态发现与自动注册)
 ├── utils/                     # 底层工具库与逆向支持
 │   ├── signer/                # JS 签名沙箱引擎 (a_bogus 等算法执行)
@@ -77,7 +81,7 @@ media-parser/
 │   ├── live_parser_samples.json # 平台真实多形态在线样本库
 │   ├── manual_verify_parsers.py # 命令行交互式冒烟与健康检查工具
 │   └── test_*_parser.py         # 各平台 Mock 自动化单元测试
-├── static/ & templates/       # Web 演示页面前端静态资源
+├── static/ & templates/       # Web 演示与管理后台静态资源 / 模板
 └── docker-compose.yml         # 容器化一键部署编排
 ```
 

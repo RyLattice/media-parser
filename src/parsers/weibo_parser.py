@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlparse
 from src.parsers.base_parser import BaseParser
 from configs.general_constants import USER_AGENT_PC, USER_AGENT_M
 from configs.logging_config import get_logger
+from src.utils.cookie_manager import get_platform_cookie
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,9 @@ class WeiboParser(BaseParser):
             'User-Agent': random.choice(USER_AGENT_PC),
             'referer': 'https://weibo.com/'
         }
+        cookie = get_platform_cookie("weibo")
+        if cookie:
+            self.headers['Cookie'] = cookie
         self.video_oid = self._extract_video_oid()
         self.numeric_id = self._extract_id()
         self.post_data = self._fetch_post_data()

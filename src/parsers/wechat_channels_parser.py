@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from configs.logging_config import get_logger
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 
 
 logger = get_logger(__name__)
@@ -43,7 +44,7 @@ class WeChatChannelsParser(BaseParser):
 
     def _parse_once(self):
         try:
-            cookie = os.getenv("YUANBAO_COOKIE", "").strip()
+            cookie = get_platform_cookie("yuanbao")
             if cookie:
                 try:
                     self.data.update(self._parse_with_yuanbao(cookie))

@@ -31,14 +31,14 @@
 | 序号 | 平台名称 | 支持媒体类型 | 无水印直链 | 配置门槛 (Cookie 依赖) | 逆向提取模式 | 对应指南 |
 | :--- | :--- | :--- | :---: | :---: | :--- | :--- |
 | 1 | **抖音** | 视频 / 图文 / LivePhoto / 音频 / 字幕 / 合集 | ✅ 支持 | 🟢 免配置 | 移动端 Feed 核心通道 + Web 终态短路退避重试 + SSR 多级容灾 | [查看指南](parsers/douyin.md) |
-| 2 | **小红书** | 图文 / LivePhoto / 视频 | ✅ 支持 | 🟢 免配置 | SSR HTML 状态注入 + 双 UA 自适应回退 | [查看指南](parsers/xiaohongshu.md) |
+| 2 | **小红书** | 图文 / LivePhoto / 视频 | ✅ 支持 | 🟢 免配置 (风控支持热配) | SSR HTML 状态注入 + 双 UA 自适应回退 | [查看指南](parsers/xiaohongshu.md) |
 | 3 | **快手** | 视频 / 图文 / 音频 | ✅ 支持 | 🟢 免配置 (内置游客凭证) | GraphQL / H5 双端多路由 Fallback | [查看指南](parsers/kuaishou.md) |
-| 4 | **哔哩哔哩** | 视频 (MP4) / 音频分流 | ✅ 支持 | 🟢 免配置 | 官方 View + PlayURL API | [查看指南](parsers/bilibili.md) |
+| 4 | **哔哩哔哩** | 视频 (MP4) / 音频分流 | ✅ 支持 | 🟢 免配置 (可选高清 Cookie) | 官方 View + PlayURL API | [查看指南](parsers/bilibili.md) |
 | 5 | **豆包 AI** | AI 视频 / 提示词生图 / 对话正文 | ✅ 支持 | 🔐 视频需 `DOUBAO_COOKIE` / 图文免配置 | Web Session 维持 + 任务轮询 + 对话树解析 | [查看指南](parsers/doubao.md) |
 | 6 | **即梦 AI** | AI 视频 / AI 生图图集 / Prompt | ✅ 支持 | 🟢 免配置 | 移动分享端接口解析 + SPA HTML 正则提取 | [查看指南](parsers/jimeng.md) |
 | 7 | **可灵 AI** | AI 视频生成直链 | ✅ 支持 | 🟢 免配置 | 快手可灵 H5 分享接口 | [查看指南](parsers/kling.md) |
 | 8 | **海螺 AI** | AI 视频直链 / Prompt / 参考帧 | ✅ 支持 | 🟢 免配置 | Next.js Flight SSR 流式渲染解析 | [查看指南](parsers/hailuo.md) |
-| 9 | **通义千问** | AI 图文 / 图像生成 | ✅ 支持 | ⚠️ 需 `YUANBAO_COOKIE` | AI Studio 移动分享端抓取 | [查看指南](parsers/qianwen.md) |
+| 9 | **通义千问** | AI 图文 / 图像生成 | ✅ 支持 | 🟢 免配置 | React SPA API 逆向 + HTML SSR 兜底 | [查看指南](parsers/qianwen.md) |
 | 10 | **夸克 AI** | AI 图文 / 图像 | ✅ 支持 | 🟢 免配置 | 夸克 H5 分享路由解析 | [查看指南](parsers/quark-ai.md) |
 | 11 | **小云雀 AI** | AI 图文 / 图像 | ✅ 支持 | 🟢 免配置 | 剪映小云雀分享端 | [查看指南](parsers/xiaoyunque.md) |
 | 12 | **腾讯元宝** | AI 生图 / 图片编辑 / AI 视频 | ⚠️ 含原生水印 | 🟢 公开分享免配置 | Next.js SSR 对话数据提取 | [查看指南](parsers/yuanbao.md) |
@@ -91,25 +91,35 @@
 pip install -r requirements.txt
 ```
 
-### 2. 环境变量配置 (可选)
-复制 `.env.example` 为 `.env`：
-```bash
-cp .env.example .env
-```
-根据需求在 `.env` 中按需配置：
-```env
-# 1. 抖音放映厅长视频风控通行证 (可选，仅 1% 的 /lvdetail/ 长片需要，非个人登录信息)
-DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
+### 2. 平台凭据与 Cookie 配置 (双轨支持，开箱即用)
 
-# 2. 豆包 AI 视频无水印权限凭证 (可选，用于获取 1080P 原始无水印视频)
-DOUBAO_COOKIE="sessionid_ss=your_doubao_sessionid_ss"
+本项目绝大部分平台**完全免 Cookie 开箱即用**。针对少数平台的风控或高级权限，支持两种配置方式：
 
-# 3. 腾讯元宝 Cookie (可选，用于提取视频号原始流、图集与原声音频，涉及个人账号登录态，建议使用闲置小号)
-YUANBAO_COOKIE="hy_user=xxx; hy_token=yyy;"
+* **方式 A：管理后台可视化配置（推荐）**：启动服务后登录后台 `http://127.0.0.1:8051/admin/settings`，在【平台凭据 (Cookie)】Tab 中直接粘贴保存，**即刻热生效，免重启**。
+* **方式 B：环境变量 / `.env` 注入**：复制 `.env.example` 为 `.env` 按需配置：
+  ```bash
+  cp .env.example .env
+  ```
+  ```env
+  # 1. 小红书 Cookie（可选，若遭遇验证码或反爬拦截时配置）
+  XHS_COOKIE="a1=xxx; webId=yyy; web_session=zzz;"
 
-# 4. 拼多多 Cookie (可选，用于多多视频原画视频解析)
-PINDUODUO_COOKIE="PDDAccessToken=xxx;"
-```
+  # 2. 抖音放映厅 Cookie（可选，仅 1% 的 /lvdetail/ 长片需要）
+  DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
+
+  # 3. 豆包 AI Cookie（可选，用于获取 1080P 原始无水印视频）
+  DOUBAO_COOKIE="sessionid_ss=your_doubao_sessionid_ss"
+
+  # 4. 腾讯元宝 Cookie（可选，用于提取视频号原始流与图集，建议使用小号）
+  YUANBAO_COOKIE="hy_user=xxx; hy_token=yyy;"
+
+  # 5. 拼多多 Cookie（可选，用于多多视频原画解析，需包含 PDDAccessToken）
+  PINDUODUO_COOKIE="PDDAccessToken=xxx;"
+
+  # 6. 哔哩哔哩 Cookie（可选，用于获取 1080P+ 高码率播放流）
+  BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"
+  ```
+* **方式 C：CLI 运维脚本**：通过 `python scripts/set_cookie.py set <platform> "<cookie>"` 直接设置。
 
 ### 3. 运行服务
 ```bash

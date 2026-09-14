@@ -17,7 +17,11 @@
   * 网页端长链：`https://www.bilibili.com/video/BV1asTR6FEWu`
   * 番剧/剧集长链：`https://www.bilibili.com/bangumi/play/ep1231565`、`https://www.bilibili.com/bangumi/play/ss12345`
   * 动态/Opus 链接：`https://t.bilibili.com/1245189054385881096` 或 `https://www.bilibili.com/opus/1245189054385881096`
-* **Cookie 依赖**：无需登录 Cookie（可获取 720P/1080P HTML5 基础流）。
+* **Cookie 依赖**：
+  * **公开视频基础流**：**无需 Cookie**（默认获取 720P/1080P HTML5 基础流）。
+  * **高清/大会员高码率流（可选）**：如需更高清晰度，支持配置 B 站 Cookie（`SESSDATA` 与 `bili_jct`）：
+    1. **管理后台热配置（推荐）**：在管理后台「系统设置 - 平台凭据」填入 B 站 Cookie。
+    2. **环境变量注入**：在 `.env` 中配置 `BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"`。
 
 ---
 

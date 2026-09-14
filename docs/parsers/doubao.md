@@ -85,20 +85,22 @@ flowchart TD
 
 ---
 
-## 5. Cookie 配置最小指南
+## 5. Cookie 配置指南 (双轨热更新)
 
 为避免用户复制过长且包含无关追踪标记的 Cookie，豆包仅需提取关键的身份凭据即可：
 
 1. 打开浏览器访问 [豆包网页版](https://www.doubao.com/) 并登录。
 2. 按 `F12` 打开开发者工具，在 **Application (应用程序) ➔ Cookies** 中找到核心认证字段：`sessionid_ss`。
-3. 在项目根目录的 `.env` 文件中配置（两者格式均支持）：
-   ```env
-   # 精简格式 (推荐)
-   DOUBAO_COOKIE="sessionid_ss=你的sessionid_ss值"
-   
-   # 或者完整 Cookie 字符串
-   DOUBAO_COOKIE="sessionid_ss=xxx; passport_csrf_token=yyy; ..."
-   ```
+3. 配置生效方式（支持以下任意一种）：
+   * **方式 1：管理后台可视化配置（推荐）**：进入 `http://127.0.0.1:8051/admin/settings` 在【平台凭据 (Cookie)】中填入 `sessionid_ss=你的值` 保存，即刻热生效。
+   * **方式 2：环境变量 / `.env` 注入**：
+     ```env
+     # 精简格式 (推荐)
+     DOUBAO_COOKIE="sessionid_ss=你的sessionid_ss值"
+     
+     # 或者完整 Cookie 字符串
+     DOUBAO_COOKIE="sessionid_ss=xxx; passport_csrf_token=yyy; ..."
+     ```
 
 > 💡 **提示**：`DOUBAO_COOKIE` 仅用于向豆包 AI 视频播放接口请求未压制水印的原画解密直链。豆包属于通用 AI 创作工具，如果希望彻底隔离主账号，可使用任意闲置小号的 Cookie。
 

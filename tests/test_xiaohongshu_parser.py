@@ -79,6 +79,37 @@ class XiaohongshuParserTest(unittest.TestCase):
         }
         self.assertEqual(parser.get_real_video_url(), "https://sns-video-v2.xhscdn.com/stream/clean_258.mp4")
 
+    def test_cookie_injection_in_headers(self):
+        from unittest.mock import Mock, patch
+        import os
+
+        resp = Mock()
+        resp.status_code = 200
+        resp.url = "https://www.xiaohongshu.com/explore/123"
+        resp.text = '<script>window.__INITIAL_STATE__ = {"note": {"firstNoteId": "123", "noteDetailMap": {"123": {"note": {"title": "带Cookie标题", "imageList": []}}}}}</script>'
+
+        with patch("requests.Session.get", return_value=resp) as mock_get:
+            with patch.dict(os.environ, {"XHS_COOKIE": "a1=test_cookie_value;"}):
+                parser = XiaohongshuParser("https://www.xiaohongshu.com/explore/123")
+                self.assertEqual(parser.get_title_content(), "带Cookie标题")
+                call_headers = mock_get.call_args[1]["headers"]
+                self.assertEqual(call_headers.get("Cookie"), "a1=test_cookie_value;")
+
+    def test_login_redirect_sets_terminal_error(self):
+        from unittest.mock import Mock, patch
+        import os
+
+        resp = Mock()
+        resp.status_code = 200
+        resp.url = "https://www.xiaohongshu.com/login"
+        resp.text = '<html><head><title>登录</title></head></html>'
+
+        with patch("requests.Session.get", return_value=resp):
+            with patch.dict(os.environ, {"XHS_COOKIE": ""}):
+                parser = XiaohongshuParser("https://www.xiaohongshu.com/explore/456")
+                self.assertIsNotNone(parser.terminal_error)
+                self.assertIn("需在后台系统设置中配置小红书 Cookie", parser.terminal_error["detail_msg"])
+
 
 if __name__ == "__main__":
     unittest.main()

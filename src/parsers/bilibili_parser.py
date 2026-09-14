@@ -7,6 +7,8 @@ import requests
 from configs.general_constants import USER_AGENT_PC
 from configs.logging_config import get_logger
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
+from utils.web_fetcher import UrlParser
 
 logger = get_logger(__name__)
 
@@ -27,6 +29,9 @@ class BilibiliParser(BaseParser):
             "User-Agent": random.choice(USER_AGENT_PC),
             "Referer": "https://www.bilibili.com/",
         }
+        cookie = get_platform_cookie("bilibili")
+        if cookie:
+            self.headers["Cookie"] = cookie
         self.bvid = self._extract_bvid(real_url)
         self.ep_id = self._extract_ep_id(real_url)
         self.season_id = self._extract_season_id(real_url) if not self.ep_id else None

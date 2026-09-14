@@ -4,6 +4,7 @@ import json
 from src.parsers.base_parser import BaseParser
 from configs.logging_config import get_logger
 from configs.general_constants import USER_AGENT_PC, USER_AGENT_M
+from src.utils.cookie_manager import get_platform_cookie
 import requests
 
 logger = get_logger(__name__)
@@ -20,6 +21,8 @@ class XiaohongshuParser(BaseParser):
         pc_ua = USER_AGENT_PC[0] if USER_AGENT_PC else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
         mobile_ua = USER_AGENT_M[0] if USER_AGENT_M else "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
+        cookie = get_platform_cookie("xhs")
+
         # 优先使用 PC 端 UA 请求以获得无水印高品质音视频流与原图，若失败再回退至移动端 UA
         candidate_uas = [pc_ua, mobile_ua]
 
@@ -30,6 +33,8 @@ class XiaohongshuParser(BaseParser):
                 "Referer": "https://www.xiaohongshu.com/",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             }
+            if cookie:
+                headers["Cookie"] = cookie
             try:
                 resp = self.session.get(self.real_url, headers=headers, timeout=6)
                 if resp.status_code == 404:
@@ -43,6 +48,11 @@ class XiaohongshuParser(BaseParser):
                         self.terminal_error = {"detail_msg": "该小红书笔记已被作者删除或不存在"}
                     continue
                 if "xiaohongshu.com/login" in resp.url:
+                    if is_last and not self.terminal_error:
+                        if not cookie:
+                            self.terminal_error = {"detail_msg": "访问被小红书风控拦截（需在后台系统设置中配置小红书 Cookie 凭据）"}
+                        else:
+                            self.terminal_error = {"detail_msg": "小红书 Cookie 凭据可能已失效或访问受限，请在后台更新"}
                     continue
 
                 self.html_content = resp.text

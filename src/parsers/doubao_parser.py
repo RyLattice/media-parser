@@ -13,6 +13,7 @@ from Crypto.Util.Padding import unpad
 from configs.logging_config import get_logger
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 
 
 logger = get_logger(__name__)
@@ -37,7 +38,7 @@ class DoubaoParser(BaseParser):
 
     def __init__(self, real_url):
         super().__init__(real_url)
-        cookie = os.getenv("DOUBAO_COOKIE", "").strip()
+        cookie = get_platform_cookie("doubao")
         self.headers = {
             "Accept": "application/json, text/plain, */*",
             "User-Agent": self.USER_AGENT,

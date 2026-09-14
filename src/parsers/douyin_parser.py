@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from configs.logging_config import get_logger
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 from utils.signer.bytedance.bogus_signer import BogusSigner
 from utils.web_fetcher import UrlParser
 
@@ -77,7 +78,7 @@ class DouyinParser(BaseParser):
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         }
         self.ms_token = self.signer.get_ms_token()
-        self.cookie = os.getenv("DOUYIN_COOKIE", "").strip()
+        self.cookie = get_platform_cookie("douyin")
         if self.cookie:
             self.headers['Cookie'] = self.cookie
         self.ttwid = FALLBACK_TTWID

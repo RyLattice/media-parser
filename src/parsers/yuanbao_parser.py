@@ -10,6 +10,7 @@ from configs.general_constants import USER_AGENT_M
 from configs.logging_config import get_logger
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 
 
 logger = get_logger(__name__)
@@ -27,7 +28,7 @@ class YuanbaoParser(BaseParser):
             "User-Agent": USER_AGENT_M[0],
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
-        cookie = os.getenv("YUANBAO_COOKIE", "").strip()
+        cookie = get_platform_cookie("yuanbao")
         if cookie:
             self.headers["Cookie"] = cookie
 

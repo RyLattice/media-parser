@@ -127,6 +127,34 @@ class ManagementTest(unittest.TestCase):
             from src.db import setting
             self.assertEqual(setting("global_api_enabled"), "1")
 
+    def test_admin_can_update_platform_cookies(self):
+        self.client.post(
+            "/auth/setup",
+            data={"csrf_token": self.csrf(), "username": "admin", "password": "password123", "confirm_password": "password123"},
+        )
+        self.client.post(
+            "/auth/login",
+            data={"csrf_token": self.csrf(), "username": "admin", "password": "password123"},
+        )
+        post_data = {
+            "csrf_token": self.csrf(),
+            "global_api_enabled": "1",
+            "xhs_cookie": "a1=custom_xhs_cookie_123;",
+            "pinduoduo_cookie": "_nano_fp=custom_pdd_456;",
+            "yuanbao_cookie": "hy_user=custom_yb_789;",
+            "douyin_cookie": "s_v_web_id=verify_douyin_abc;",
+        }
+        response = self.client.post("/admin/settings", data=post_data, headers={"X-Requested-With": "XMLHttpRequest"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["succ"])
+
+        with self.app.app_context():
+            from src.utils.cookie_manager import get_platform_cookie
+            self.assertEqual(get_platform_cookie("xhs"), "a1=custom_xhs_cookie_123;")
+            self.assertEqual(get_platform_cookie("pinduoduo"), "_nano_fp=custom_pdd_456;")
+            self.assertEqual(get_platform_cookie("yuanbao"), "hy_user=custom_yb_789;")
+            self.assertEqual(get_platform_cookie("douyin"), "s_v_web_id=verify_douyin_abc;")
+
     def test_secret_key_is_generated_and_reused(self):
         database = os.path.join(self.temp_dir.name, "auto-secret.db")
         first = create_app({"TESTING": True, "DATABASE": database, "SECRET_KEY": None})

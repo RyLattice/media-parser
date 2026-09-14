@@ -17,13 +17,16 @@ services:
       - ./logs:/app/logs
       # 持久化用户、API Key、开关和调用日志
       - ./data:/app/data
-    # 设置容器内的时区为本地时区与各平台 Cookie
+    # 基础运行环境（开箱即用，无需配置 Cookie 即可直接启动）
     environment:
       - TZ=Asia/Shanghai
       - SECRET_KEY=${SECRET_KEY:-}
       - DATABASE_PATH=/app/data/media_parser.db
       - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
+      # 可选平台凭据（若在本地 .env 中配置将自动透传进容器；亦可直接在管理后台配置）：
+      - XHS_COOKIE=${XHS_COOKIE:-}
       - DOUYIN_COOKIE=${DOUYIN_COOKIE:-}
       - DOUBAO_COOKIE=${DOUBAO_COOKIE:-}
       - YUANBAO_COOKIE=${YUANBAO_COOKIE:-}
       - PINDUODUO_COOKIE=${PINDUODUO_COOKIE:-}
+      - BILIBILI_COOKIE=${BILIBILI_COOKIE:-}

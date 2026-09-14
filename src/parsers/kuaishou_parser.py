@@ -5,6 +5,7 @@ import requests
 from urllib.parse import urlparse
 from utils.web_fetcher import UrlParser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 from configs.general_constants import USER_AGENT_M, USER_AGENT_PC
 from configs.logging_config import get_logger
 
@@ -16,12 +17,17 @@ class KuaishouParser(BaseParser):
     def __init__(self, real_url):
         super().__init__(real_url)
 
+        default_cookie = (
+            'kpf=PC_WEB; clientid=3; did=web_bfbcdb2f5b3dc663a745deabafcf61e6; kwpsecproductname=kuaishou-vision; '
+            'didv=1773330035000; kwpsecproductname=kuaishou-vision; userId=446442483; kuaishou.server.webday7_st=ChprdWFpc2hvdS5zZXJ2ZXIud2ViZGF5Ny5zdBKwAeuBbGjVcz39sj4G7d7P54r9C1etC_QftYb2I1XMg01WSbw9NefL7E6EmwkYxHf70B9BM3Oyk20kFv1Y0xnRcfHtGNHYUHkmKguP6cvFeACofr2zPAZYRchRkndIBk5qExOlkr4FSoGpY-WqXeibapHNEbfZTLZl_QkQA4aGWotSZpBMv6wR3RxZWiMv60xc-CIndGICJbbRAaRGZNxz7QBj2Mr-SeU2o0bVi7esnD1AGhKquV16S9dezebl5ZuYo_R_JKgiIAidQF8n526Yos_GTgm3KrGknnEbkK-NMiNvTw3YBehZKAUwAQ; kuaishou.server.webday7_ph=f3720606882f1d7a76ab1ab52a489c4d44a1; bUserId=1000583835422; ktrace-context=1|MS44Nzg0NzI0NTc4Nzk2ODY5Ljg3MTE4OTQ4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTI=|MS44Nzg0NzI0NTc4Nzk2ODY5LjUxNTU3MjM4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTM=|0|webservice-user-growth-node|webservice|true|src-Js; kwssectoken=BIjmefxxiTpXOdz9/RQ6Gl7cR5/0J7xaPzJ18udJgBSLTrJy4O7LhrYtbeeHGW+AOJrI6P8LQnioDWSuuQxV8Q==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d; kpn=KUAISHOU_VISION; kwfv1=PnGU+9+Y8008S+nH0U+0mjPf8fP08f+98f+nLlwnrIP9P9G98YPf8jPBQSweS0+nr9G0mD8B+fP/L98/qlPe4f8eDI8f8jwBGh8BPAPfLEGALhGf+f+AYj+e4jPfLl+AY0G/cI+/Q0G0DEPfc98/mjw/pSPBbjGArh8erl+ezfG/HlP0zf+0b0+n+DGnpj+0HI+9Qj+0p0PeDF+ADIPeL7+W==; kwssectoken=IMLS/eg005i6IUbIoIB/7WByh8ciKMPUXULQ3a5/m3dK5D9ez8He/oMP2QLhil52v7Bk3O0CO2g6t5R/5XjSCw==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d'
+        )
+        custom_cookie = get_platform_cookie("kuaishou")
+
         self.headers = {
             "content-type": "application/json; charset=UTF-8",
             'User-Agent': random.choice(USER_AGENT_PC),
             'referer': 'https://www.kuaishou.com/',
-            # 快手加入无登录的cookie，解析成功率高
-            'cookie': f'kpf=PC_WEB; clientid=3; did=web_bfbcdb2f5b3dc663a745deabafcf61e6; kwpsecproductname=kuaishou-vision; didv=1773330035000; kwpsecproductname=kuaishou-vision; userId=446442483; kuaishou.server.webday7_st=ChprdWFpc2hvdS5zZXJ2ZXIud2ViZGF5Ny5zdBKwAeuBbGjVcz39sj4G7d7P54r9C1etC_QftYb2I1XMg01WSbw9NefL7E6EmwkYxHf70B9BM3Oyk20kFv1Y0xnRcfHtGNHYUHkmKguP6cvFeACofr2zPAZYRchRkndIBk5qExOlkr4FSoGpY-WqXeibapHNEbfZTLZl_QkQA4aGWotSZpBMv6wR3RxZWiMv60xc-CIndGICJbbRAaRGZNxz7QBj2Mr-SeU2o0bVi7esnD1AGhKquV16S9dezebl5ZuYo_R_JKgiIAidQF8n526Yos_GTgm3KrGknnEbkK-NMiNvTw3YBehZKAUwAQ; kuaishou.server.webday7_ph=f3720606882f1d7a76ab1ab52a489c4d44a1; bUserId=1000583835422; ktrace-context=1|MS44Nzg0NzI0NTc4Nzk2ODY5Ljg3MTE4OTQ4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTI=|MS44Nzg0NzI0NTc4Nzk2ODY5LjUxNTU3MjM4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTM=|0|webservice-user-growth-node|webservice|true|src-Js; kwssectoken=BIjmefxxiTpXOdz9/RQ6Gl7cR5/0J7xaPzJ18udJgBSLTrJy4O7LhrYtbeeHGW+AOJrI6P8LQnioDWSuuQxV8Q==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d; kpn=KUAISHOU_VISION; kwfv1=PnGU+9+Y8008S+nH0U+0mjPf8fP08f+98f+nLlwnrIP9P9G98YPf8jPBQSweS0+nr9G0mD8B+fP/L98/qlPe4f8eDI8f8jwBGh8BPAPfLEGALhGf+f+AYj+e4jPfLl+AY0G/cI+/Q0G0DEPfc98/mjw/pSPBbjGArh8erl+ezfG/HlP0zf+0b0+n+DGnpj+0HI+9Qj+0p0PeDF+ADIPeL7+W==; kwssectoken=IMLS/eg005i6IUbIoIB/7WByh8ciKMPUXULQ3a5/m3dK5D9ez8He/oMP2QLhil52v7Bk3O0CO2g6t5R/5XjSCw==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d'
+            'cookie': custom_cookie if custom_cookie else default_cookie,
         }
         self.video_id = UrlParser.get_video_id(self.real_url)
         self.page_type = "UNKNOWN"

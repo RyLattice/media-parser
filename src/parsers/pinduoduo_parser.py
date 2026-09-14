@@ -9,6 +9,7 @@ from configs.general_constants import USER_AGENT_M
 from configs.logging_config import get_logger
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 from utils.signer.pinduoduo.anti_signer import AntiSigner
 
 logger = get_logger(__name__)
@@ -19,14 +20,14 @@ class PinduoduoParser(BaseParser):
     """拼多多 / 多多视频 / 商品与评价秀解析器。
 
     支持：
-    1. 多多视频 (feed_id) 原画视频与作者、封面提取（支持 PINDUODUO_COOKIE 配置）。
+    1. 多多视频 (feed_id) 原画视频与作者、封面提取（支持后台/环境变量 PINDUODUO_COOKIE 配置）。
     2. 商品分享与评价秀短链 (_oak_share_url, goods_id, review_id) 高清实物图与元数据提取。
     3. 商品页面 SSR window.rawData 数据解析。
     """
 
     def __init__(self, real_url):
         super().__init__(real_url)
-        cookie = os.getenv("PINDUODUO_COOKIE", "").strip()
+        cookie = get_platform_cookie("pinduoduo")
 
         self.headers = {
             "User-Agent": USER_AGENT_M[0],
