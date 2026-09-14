@@ -16,6 +16,7 @@
   * 视频页：`https://video.weibo.com/show?fid=1034:5336219874426938`
   * 直播/回放页：`https://weibo.com/l/wblive/p/show/1022:2321325311149536575703`
   * 网页长链：`https://weibo.com/1234567890/Mabcdef`
+  * 移动端带渠道后缀：`https://m.weibo.cn/7753941940/5332536008119716/qq?wm=3333_2001`
 * **Cookie 依赖**：无需登录 Cookie（内置自动生成临时 Visitor 访客会话）。
 
 ---
@@ -24,6 +25,7 @@
 
 ### 2.1 微博 Base62 转换算法 (`mid_to_id`)
 微博长链中的字符串 ID（如 `Mabcdef`）为 Base62 编码。在请求数据前，解析器通过 `base62_decode` 将其还原为数据库中的真实纯数字 `id`。
+同时支持识别并提取 `m.weibo.cn/<uid>/<mid>/<channel_subpath>?...` 移动端嵌套路径中的纯数字 mid。
 
 ### 2.2 视频流、直播回放与图文分支提取
 * **分支 1 (视频专页 `1034:xxx` 与直播回放 `1022:xxx`)**：
@@ -39,4 +41,4 @@
 ## 3. 测试与验证
 
 * **单元测试**：[tests/test_weibo_parser.py](file:///Users/leo/Projects/media-parser/tests/test_weibo_parser.py)
-* **执行命令**：`pytest tests/test_weibo_parser.py`
+* **执行命令**：`python -m unittest tests/test_weibo_parser.py`

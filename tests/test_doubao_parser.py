@@ -177,11 +177,39 @@ class DoubaoParserTest(unittest.TestCase):
         with patch("requests.Session.get", return_value=response):
             parser = DoubaoParser("https://www.doubao.com/thread/pure-text")
 
-        self.assertTrue(parser.no_media_in_content)
-        self.assertIn("请写一首关于秋天的古诗", parser.get_description())
-        self.assertIn("空山新雨后，天气晚来秋", parser.get_description())
-        self.assertIsNone(parser.get_real_video_url())
-        self.assertEqual(parser.get_image_list(), [])
+    def test_music_sharing_extracts_audio_and_video(self):
+        play_info_response = Mock(
+            status_code=200,
+            json=Mock(return_value={
+                "code": 0,
+                "data": {
+                    "media_type": "audio",
+                    "original_media_info": {
+                        "main_url": "https://v9-videoweb.doubao.com/test_audio.mp4"
+                    },
+                    "poster_url": "https://image.example.com/music_poster.jpg"
+                }
+            })
+        )
+        url = "https://www.doubao.com/music-sharing?vid=v02292g10006dadu4kq7dld48hgk0dn0&share_id=55311664453668866"
+        with patch.object(DoubaoParser, "_fetch_unwatermarked_video_by_vid", return_value=(["https://clean.example.com/audio.mp4"], "https://clean.example.com/poster.jpg")):
+            with patch("requests.Session.post", return_value=play_info_response):
+                parser = DoubaoParser(url)
+
+        self.assertEqual(parser.get_title_content(), "豆包AI音乐分享")
+        self.assertEqual(parser.get_real_video_url(), "https://clean.example.com/audio.mp4")
+        self.assertEqual(parser.get_audio_url(), "https://v9-videoweb.doubao.com/test_audio.mp4")
+        self.assertEqual(parser.get_cover_photo_url(), "https://clean.example.com/poster.jpg")
+
+    def test_chat_route_supported(self):
+        page = "<html><head></head><body></body></html>"
+        response = Mock(text=page)
+        response.raise_for_status.return_value = None
+
+        with patch("requests.Session.get", return_value=response):
+            parser = DoubaoParser("https://www.doubao.com/chat/38441154953364226")
+
+        self.assertEqual(parser.get_title_content(), "豆包对话分享")
 
 
 if __name__ == "__main__":

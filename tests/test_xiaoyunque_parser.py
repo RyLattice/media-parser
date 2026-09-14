@@ -44,6 +44,40 @@ class XiaoyunqueParserTest(unittest.TestCase):
             "12345",
         )
 
+    def test_inspiration_page_response(self):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "err_no": 0,
+            "err_tips": "success",
+            "data": {
+                "page_info": {
+                    "inspiration_page": {
+                        "user_info": {
+                            "nick_name": "茉莱",
+                            "avatar_url": "https://p26-passport.byteacctimg.com/avatar.jpg",
+                        },
+                        "item_info": {
+                            "title": "三角洲原图壁纸",
+                            "desc": "壁纸生成",
+                            "video_info": [
+                                {"video_url": "https://v11-xyq-video.jianying.com/video.mp4"}
+                            ],
+                        },
+                    }
+                }
+            },
+        }
+        url = "https://xiaoyunque.jianying.com/activities/pippit_share?inspiration_id=7684286783865146686"
+
+        with patch("requests.Session.post", return_value=response):
+            parser = XiaoyunqueParser(url)
+
+        self.assertEqual(parser.get_title_content(), "三角洲原图壁纸")
+        self.assertEqual(parser.get_description(), "壁纸生成")
+        self.assertEqual(parser.get_real_video_url(), "https://v11-xyq-video.jianying.com/video.mp4")
+        self.assertEqual(parser.get_author_info()["nickname"], "茉莱")
+
     def test_url_parser_recognizes_xiaoyunque(self):
         url = "https://xiaoyunque.jianying.com/s/z_7nWGLGruM/"
         self.assertEqual(UrlParser.get_platform(url), "小云雀AI")

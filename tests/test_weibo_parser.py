@@ -39,6 +39,11 @@ class WeiboParserTest(unittest.TestCase):
         parser.real_url = "https://m.weibo.cn/detail/O8yqz0I8Q"
         self.assertEqual(parser._extract_id(), "5020389670169684")
 
+    def test_extracts_id_from_mobile_channel_url(self):
+        parser = WeiboParser.__new__(WeiboParser)
+        parser.real_url = "https://m.weibo.cn/7753941940/5332536008119716/qq?wm=3333_2001"
+        self.assertEqual(parser._extract_id(), "5332536008119716")
+
     def test_image_list_extraction(self):
         parser = WeiboParser.__new__(WeiboParser)
         parser.post_data = {

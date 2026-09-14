@@ -46,8 +46,9 @@ class XiaoyunqueParser(BaseParser):
             qdict = {k: v[0] for k, v in parse_qs(parsed.query).items()}
 
             if not qdict and "/s/" in parsed.path:
+                target_fetch_url = url if url.endswith('/') else f"{url}/"
                 response = self.session.get(
-                    url,
+                    target_fetch_url,
                     headers={"User-Agent": self.USER_AGENT},
                     allow_redirects=True,
                     timeout=15,
@@ -78,42 +79,75 @@ class XiaoyunqueParser(BaseParser):
     @classmethod
     def _format_data(cls, data):
         page_info = data.get("page_info") or {}
-        generate_page = page_info.get("generate_page") or {}
-        user_info = generate_page.get("user_info") or {}
-        item_info = generate_page.get("item_info") or {}
+        
+        # 寻找命中的有效页面节点（兼容 generate_page, inspiration_page, template_page 等）
+        target_page = {}
+        for key in ("generate_page", "inspiration_page", "template_page", "share_page"):
+            if isinstance(page_info.get(key), dict):
+                target_page = page_info[key]
+                break
+        if not target_page:
+            for val in page_info.values():
+                if isinstance(val, dict) and ("item_info" in val or "user_info" in val):
+                    target_page = val
+                    break
+
+        user_info = target_page.get("user_info") or {}
+        item_info = target_page.get("item_info") or {}
 
         title = item_info.get("title") or None
         desc = item_info.get("desc") or None
 
         # 图片列表
-        image_info = item_info.get("image_info") or []
+        image_info = item_info.get("image_info") or item_info.get("images") or []
         image_list = []
-        for img in image_info:
-            if isinstance(img, dict) and img.get("image_url"):
-                image_list.append(img["image_url"])
-            elif isinstance(img, str):
-                image_list.append(img)
+        if isinstance(image_info, list):
+            for img in image_info:
+                if isinstance(img, dict) and (img.get("image_url") or img.get("url")):
+                    image_list.append(img.get("image_url") or img.get("url"))
+                elif isinstance(img, str):
+                    image_list.append(img)
+        elif isinstance(image_info, dict):
+            img_url = image_info.get("image_url") or image_info.get("url")
+            if img_url:
+                image_list.append(img_url)
 
-        # 视频列表
-        video_url = item_info.get("video_url") or item_info.get("video_play_url")
-        video_info = item_info.get("video_info") or {}
-        if not video_url and isinstance(video_info, dict):
-            video_url = video_info.get("main_url") or video_info.get("video_url")
+        # 视频列表与主视频
+        video_list = []
+        raw_video_url = item_info.get("video_url") or item_info.get("video_play_url")
+        video_info = item_info.get("video_info") or item_info.get("video") or []
+        
+        if isinstance(video_info, list):
+            for v in video_info:
+                if isinstance(v, dict):
+                    v_url = v.get("video_url") or v.get("main_url") or v.get("url")
+                    if v_url and v_url not in video_list:
+                        video_list.append(v_url)
+                elif isinstance(v, str) and v not in video_list:
+                    video_list.append(v)
+        elif isinstance(video_info, dict):
+            v_url = video_info.get("main_url") or video_info.get("video_url") or video_info.get("url")
+            if v_url and v_url not in video_list:
+                video_list.append(v_url)
 
-        video_list = [video_url] if video_url else []
+        if raw_video_url and raw_video_url not in video_list:
+            video_list.insert(0, raw_video_url)
+
+        primary_video_url = video_list[0] if video_list else None
 
         # 封面图
-        cover_url = item_info.get("cover_url")
+        cover_url = item_info.get("cover_url") or item_info.get("poster") or item_info.get("cover")
+
         author = {
-            "nickname": user_info.get("nick_name") or "",
+            "nickname": user_info.get("nick_name") or user_info.get("nickname") or "",
             "author_id": str(user_info.get("user_id") or user_info.get("sec_uid") or ""),
-            "avatar": user_info.get("avatar_url") or "",
+            "avatar": user_info.get("avatar_url") or user_info.get("avatar") or "",
         }
 
         return {
             "title": title,
             "desc": desc,
-            "video_url": video_url,
+            "video_url": primary_video_url,
             "video_list": video_list,
             "cover_url": cover_url,
             "author": author,

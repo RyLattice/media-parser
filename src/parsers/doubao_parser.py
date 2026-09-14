@@ -51,16 +51,19 @@ class DoubaoParser(BaseParser):
             "cover_url": None,
             "author": None,
             "image_list": [],
+            "audio_url": None,
         }
         self._parse_once()
 
     def _parse_once(self):
         path = urlparse(self.real_url).path.rstrip("/")
         try:
-            if path.startswith("/thread/"):
+            if path.startswith("/thread/") or path.startswith("/chat/"):
                 self.data.update(self._parse_thread())
             elif path == "/video-sharing":
                 self.data.update(self._parse_video_sharing())
+            elif path == "/music-sharing":
+                self.data.update(self._parse_music_sharing())
             else:
                 logger.warning(f"Unsupported Doubao share URL: {self.real_url}")
         except Exception as exc:
@@ -238,6 +241,80 @@ class DoubaoParser(BaseParser):
                 "author_id": str(author_id) if author_id is not None else "",
                 "avatar": user_info.get("avatar") or user_info.get("avatar_url") or "",
             },
+            "image_list": [],
+        }
+
+    def _parse_music_sharing(self):
+        query = parse_qs(urlparse(self.real_url).query)
+        vid = self._first(query.get("vid")) or self._first(query.get("video_id"))
+
+        headers = dict(self.headers)
+        headers.update({
+            "Content-Type": "application/json",
+            "Origin": "https://www.doubao.com",
+            "Referer": self.real_url,
+        })
+
+        params = {
+            "version_code": "20800",
+            "language": "zh-CN",
+            "device_platform": "web",
+            "aid": "497858",
+            "real_aid": "497858",
+            "pkg_type": "release_version",
+            "samantha_web": "1",
+            "use-olympus-account": "1",
+        }
+
+        audio_urls = []
+        video_urls = []
+        cover_url = None
+
+        if vid:
+            # 1. 优先通过 alice/resource/get_video_model + FPLAY 解密获取无水印流
+            unwatermarked_urls, unwatermarked_poster = self._fetch_unwatermarked_video_by_vid(vid)
+            if unwatermarked_urls:
+                video_urls.extend(unwatermarked_urls)
+            if unwatermarked_poster:
+                cover_url = unwatermarked_poster
+
+            # 2. 次选 samantha/media/get_play_info
+            try:
+                play_resp = self.session.post(
+                    self.PLAY_INFO_API,
+                    params=params,
+                    headers=headers,
+                    json={"key": vid},
+                    timeout=10,
+                )
+                if play_resp.status_code == 200:
+                    play_json = play_resp.json()
+                    if play_json.get("code") == 0 and play_json.get("data"):
+                        pdata = play_json["data"]
+                        orig_info = pdata.get("original_media_info") or {}
+                        raw_orig = orig_info.get("main_url")
+                        if raw_orig:
+                            clean_url = self._sanitize_video_url(raw_orig)
+                            if pdata.get("media_type") == "audio":
+                                audio_urls.append(clean_url)
+                            else:
+                                video_urls.append(clean_url)
+                        if not cover_url and pdata.get("poster_url"):
+                            cover_url = pdata["poster_url"]
+            except Exception as err:
+                logger.debug(f"Doubao samantha get_play_info request failed: {err}")
+
+        final_video_url = video_urls[0] if video_urls else None
+        final_audio_url = audio_urls[0] if audio_urls else final_video_url
+
+        return {
+            "title": "豆包AI音乐分享",
+            "desc": None,
+            "video_url": final_video_url,
+            "video_list": video_urls,
+            "audio_url": final_audio_url,
+            "cover_url": cover_url,
+            "author": None,
             "image_list": [],
         }
 
@@ -655,3 +732,6 @@ class DoubaoParser(BaseParser):
 
     def get_image_list(self):
         return self.data.get("image_list") or []
+
+    def get_audio_url(self):
+        return self.data.get("audio_url")

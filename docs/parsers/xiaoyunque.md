@@ -9,9 +9,11 @@
 * **平台标识**：`小云雀AI`
 * **支持媒体类型**：
   * AI 创作图集 (PNG/JPEG)
+  * AI 创作高清视频 (MP4)
   * 提示词 Prompt、封面与作者信息
 * **常见链接形态**：
   * 分享短链：`https://xiaoyunque.jianying.com/s/z_7nWGLGruM/`
+  * 灵感分享长链：`https://xiaoyunque.jianying.com/activities/pippit_share?inspiration_id=...`
 * **Cookie 依赖**：公开短链**无需配置 Cookie**。
 
 ---
@@ -23,12 +25,14 @@
 
 ### 2.2 核心数据接口
 * **接口地址**：
-  `GET/POST https://xiaoyunque.jianying.com/luckycat/cn/jianying/campaign/v1/pippit/share/landing_page`
+  `POST https://xiaoyunque.jianying.com/luckycat/cn/jianying/campaign/v1/pippit/share/landing_page`
 * **请求头**：
   * `User-Agent`: 现代浏览器 UA
   * `Accept`: `application/json, text/plain, */*`
+  * `Content-Type`: `application/json`
 * **提取数据**：
-  * 从返回的 `data.item_info` 或 `data.share_info` 中提取高清图集 URL 与封面。
+  * 解析返回的 `data.page_info`，兼容 `generate_page`（生成页）、`inspiration_page`（灵感创作/壁纸）与 `template_page`（模板页）；
+  * 从 `item_info` 中提取列表型 `video_info` 视频直链、`image_info` 高清图集及创作者（`nick_name`, `avatar_url`）元数据。
 
 ---
 
@@ -37,6 +41,5 @@
 * **单元测试**：[tests/test_xiaoyunque_parser.py](file:///Users/leo/Projects/media-parser/tests/test_xiaoyunque_parser.py)
 * **执行测试**：
   ```bash
-  pytest tests/test_xiaoyunque_parser.py
-  python tests/manual_verify_parsers.py --platform 小云雀AI
+  python -m unittest tests/test_xiaoyunque_parser.py
   ```

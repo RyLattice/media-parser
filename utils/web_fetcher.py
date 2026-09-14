@@ -159,12 +159,13 @@ class UrlParser:
         if platform == '好看视频':
             query_params = parse_qs(parsed_url.query)
             preserved_params = []
-            for key in ('vid', 'id', 'context', 'pd', 'src'):
+            for key in ('vid', 'id', 'context', 'pd', 'src', 'nid', 'sign', 'word', 'oword', 'atn', 'frsrcid'):
                 value = query_params.get(key, [None])[0]
                 if value is not None:
                     preserved_params.append((key, value))
             if preserved_params:
-                address = f"{address}?{urlencode(preserved_params)}"
+                from urllib.parse import quote
+                address = f"{address}?{urlencode(preserved_params, quote_via=quote)}"
         elif platform == "微视":
             query_params = parse_qs(parsed_url.query)
             vid = query_params.get('id', [None])[0]  # 使用 get 方法避免 KeyError
@@ -203,7 +204,7 @@ class UrlParser:
         elif platform == "豆包":
             query_params = parse_qs(parsed_url.query)
             preserved_params = []
-            for key in ('share_id', 'source_type', 'video_id', 'share_scene'):
+            for key in ('share_id', 'source_type', 'video_id', 'share_scene', 'vid'):
                 value = query_params.get(key, [None])[0]
                 if value is not None:
                     preserved_params.append((key, value))

@@ -9,30 +9,36 @@
 * **平台标识**：`豆包`
 * **支持媒体类型**：
   * AI 生成 1080P 高清无水印视频 (MP4)
+  * AI 创作音乐原声与音频流 (MP3/M4A/MP4 Audio)
   * AI 生成图文 / 提示词生图 (PNG/JPEG)
   * 对话问答正文 (Markdown/纯文本内容)
   * 对话标题、Prompt 提示词与创作者信息
 * **常见链接形态**：
   * 独立视频分享：`https://www.doubao.com/video-sharing?share_id=41356597786354690&video_id=v0d69cg10004d6978e2ljht0i4fdpp00`
-  * 对话历史/线程分享：`https://www.doubao.com/thread/w8293749281`
+  * AI 音乐分享：`https://www.doubao.com/music-sharing?vid=v02292g10006dadu4kq7dld48hgk0dn0&share_id=55311664453668866`
+  * 对话历史/线程分享：`https://www.doubao.com/thread/w8293749281` 或 `https://www.doubao.com/chat/38441154953364226`
 * **Cookie 依赖**：
-  * **图片与对话正文解析**：**无需 Cookie**（公开元数据直接包含 `image_ori_raw` 高清原图与完整对话文本）。
-  * **视频无水印解析**：**必须配置 Cookie**（1080P 原始流被权限隔离，未登录仅能获取服务端硬压制水印的预览切片）。
+  * **图片、音乐与对话正文解析**：**无需 Cookie**（公开元数据直接包含 `image_ori_raw` 高清原图、音乐音频流与完整对话文本）。
+  * **视频无水印解析**：**建议配置 Cookie**（1080P 原始流被权限隔离，未登录仅能获取服务端硬压制水印的预览切片）。
 
 ---
 
 ## 2. 核心逆向流程
 
-[DoubaoParser](file:///Users/leo/Projects/media-parser/src/parsers/doubao_parser.py) 内部实现了双分支解析引擎与优雅降级策略：
+[DoubaoParser](file:///Users/leo/Projects/media-parser/src/parsers/doubao_parser.py) 内部实现了多路由分发解析引擎与优雅降级策略：
 
 ```mermaid
 flowchart TD
     Start["输入豆包分享 URL"] --> Route{"判断 URL 路径"}
-    Route -->|"路径包含 /thread/"| ThreadFlow["1. 会话线程解析"]
+    Route -->|"路径包含 /thread/ 或 /chat/"| ThreadFlow["1. 会话线程解析"]
     Route -->|"路径为 /video-sharing"| VideoFlow["2. 独立视频解析"]
+    Route -->|"路径为 /music-sharing"| MusicFlow["3. AI 音乐分享解析"]
     
     ThreadFlow --> ScriptPayload["提取 HTML 中 script 注入的 JSON 负载"]
     ScriptPayload --> Creations["递归遍历提取 creation 实体 (视频/图像)"]
+    
+    MusicFlow --> VidDecrypt["通过 vid 调用 alice/resource/get_video_model 或 get_play_info"]
+    VidDecrypt --> AudioStream["提取原始无损音频直链与高清视频流"]
     
     VideoFlow --> AuthCheck{"是否配置了 DOUBAO_COOKIE?"}
     AuthCheck -->|"已配置 Cookie"| SamanthaAPI["调用 samantha/media/get_play_info"]
