@@ -46,13 +46,13 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **快手** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  | ✓ |  | [查看](docs/parsers/kuaishou.md) |
 | **哔哩哔哩** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  | [查看](docs/parsers/bilibili.md) |
 | **豆包** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | [查看](docs/parsers/doubao.md) |
-| **即梦AI** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  | [查看](docs/parsers/jimeng.md) |
-| **小云雀AI** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/xiaoyunque.md) |
+| **即梦AI** | ✓ | ✓ | ✓ | ✓ | ✓* | ✓ | ✓ |  |  |  | [查看](docs/parsers/jimeng.md) |
+| **小云雀AI** | ✓ | ✓ | ✓ | ✓ | ✓* | ✓ |  |  |  |  | [查看](docs/parsers/xiaoyunque.md) |
 | **可灵AI** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/kling.md) |
 | **海螺AI** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/hailuo.md) |
 | **夸克AI** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/quark-ai.md) |
 | **通义千问** | ✓ | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  | [查看](docs/parsers/qianwen.md) |
-| **腾讯元宝** | ✓ | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  | [查看](docs/parsers/yuanbao.md) |
+| **腾讯元宝** | ✓ | ✓ |  | ✓ | ✓* | ✓ | ✓ |  |  |  | [查看](docs/parsers/yuanbao.md) |
 | **闲鱼** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/xianyu.md) |
 | **拼多多** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  | [查看](docs/parsers/pinduoduo.md) |
 | **Soul** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/soul.md) |
@@ -90,7 +90,7 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **央视** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/cctv.md) |
 | **央视频** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/yangshipin.md) |
 
-*注：腾讯元宝等极少数平台提取的是官方存储桶原画质直链，素材保留官方原生水印。
+注：带 `*` 的项表示支持提取官方最高画质直链，但受平台生成或导出机制限制，该素材目前仍保留官方原生水印；未带 `*` 的项均为无水印素材。
 
 ---
 
@@ -235,10 +235,10 @@ http://localhost:8051/api/v1/parse?key=mp_xxx&url=https://v.douyin.com/xxx/
 
 ## 🧪 自动化测试与健康自检
 
-本项目拥有完备的双层测试体系（Mock 单元测试 + 50 平台真实在线样本库回归）。遇到解析异常或日常部署验证时，可一键运行健康自检：
+本项目拥有完备的双层测试体系（Mock 单元测试 + 基于 [`tests/live_parser_samples.json`](tests/live_parser_samples.json) 的 300+ 条真实在线样本库回归）。遇到解析异常或日常部署验证时，可一键运行50 平台健康自检：
 
 ```bash
-# 50 平台极速冒烟测试（每个平台测 1 条最具代表性的链接，秒级完成健康检查）
+# 50 平台极速冒烟测试（读取样本库，每个平台测 1 条最具代表性的链接，秒级完成）
 python3 tests/manual_verify_parsers.py --limit 1
 
 # 仅验证单个或指定平台（如：小云雀AI / 抖音）

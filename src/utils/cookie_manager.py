@@ -13,6 +13,8 @@ PLATFORM_COOKIE_ALIASES = {
     "bilibili": ["BILIBILI_COOKIE", "BILI_COOKIE"],
     "weibo": ["WEIBO_COOKIE"],
     "kuaishou": ["KUAISHOU_COOKIE", "KS_COOKIE"],
+    "xiaoyunque": ["XIAOYUNQUE_COOKIE", "XYQ_COOKIE", "PIPPIT_COOKIE"],
+    "xyq": ["XIAOYUNQUE_COOKIE", "XYQ_COOKIE", "PIPPIT_COOKIE"],
 }
 
 

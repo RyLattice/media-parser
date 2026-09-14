@@ -56,6 +56,8 @@ flowchart TD
    * 新版 `qianwen.my.cn/share/chat/` 页面为纯客户端渲染，HTML 中无 `__INITIAL_PROPS__`，直接正则提取 HTML 会失败。必须调用 `chat2-api` 才能获取真实数据。
 2. **`initialData` 双重编码**：
    * 老版前端模板将 `initialData` 做了 `encodeURIComponent`，在 `json.loads` 之前必须进行 `urllib.parse.unquote`。
+3. **无水印原图 vs 带水印导出图 (`url` vs `downloadUrl`)**：
+   * 在 `__INITIAL_PROPS__` 的 `images` / `image` 节点中，`url` 对应模型生成的 1024x1024 无水印原图，而 `downloadUrl` 对应网页端带右下角通义标识的导出图。解析器必须优先提取 `url`，以确保输出无水印纯净资源。
 
 ---
 

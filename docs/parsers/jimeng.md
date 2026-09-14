@@ -17,6 +17,11 @@
   * 移动社区详情长链：`https://jimeng.jianying.com/ai-tool/share/item/7631885529415568665`
   * 同款/草稿/生成记录回流长链：`https://jimeng.jianying.com/activities/reflux/mproject?id=7683715084807376153&search_keyword=...`
 
+> [!NOTE]
+> **水印与素材说明**：
+> 1. **AI 生图图片**：提取的是官方最高清晰度原图（最高 4096 分辨率），**完全无水印**。
+> 2. **AI 生成视频**：官方在生成视频时自带水印。解析器会优先选择仅在片尾带 logo 的版本（主体画面无右上角常驻水印）。
+
 ---
 
 ## 2. 核心架构与原生双轨解析流程

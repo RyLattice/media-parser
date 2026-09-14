@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 
 from configs.logging_config import get_logger
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 
 
 logger = get_logger(__name__)
@@ -15,6 +16,7 @@ class XiaoyunqueParser(BaseParser):
     """通过小云雀官方接口解析 xiaoyunque.jianying.com 分享链接。"""
 
     API_URL = "https://xiaoyunque.jianying.com/luckycat/cn/jianying/campaign/v1/pippit/share/landing_page"
+    BIZ_DETAIL_API = "https://xyq.jianying.com/api/biz/v1/inspiration/get_inspiration_detail"
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -23,11 +25,14 @@ class XiaoyunqueParser(BaseParser):
 
     def __init__(self, real_url):
         super().__init__(real_url)
+        self.cookie = get_platform_cookie("xiaoyunque")
         self.headers = {
             "Accept": "application/json, text/plain, */*",
             "Content-Type": "application/json",
             "User-Agent": self.USER_AGENT,
         }
+        if self.cookie:
+            self.headers["Cookie"] = self.cookie
         self.data = {
             "title": "",
             "desc": None,
@@ -61,6 +66,28 @@ class XiaoyunqueParser(BaseParser):
                 logger.warning(f"Unable to extract Xiaoyunque query parameters from URL: {self.real_url}")
                 return
 
+            # 1. 若配置了 Cookie，优先尝试请求高码率/下载流接口
+            inspiration_id = qdict.get("inspiration_id") or qdict.get("template_id")
+            if self.cookie and inspiration_id:
+                try:
+                    biz_resp = self.session.post(
+                        self.BIZ_DETAIL_API,
+                        headers=self.headers,
+                        json={"inspiration_id_list": [str(inspiration_id)]},
+                        timeout=15,
+                    )
+                    if biz_resp.status_code == 200:
+                        biz_data = biz_resp.json().get("data") or {}
+                        insp_list = biz_data.get("inspiration_list") or biz_data.get("inspirations") or []
+                        if insp_list and isinstance(insp_list[0], dict):
+                            formatted_biz = self._format_biz_data(insp_list[0])
+                            if formatted_biz.get("video_url") or formatted_biz.get("image_list"):
+                                self.data.update(formatted_biz)
+                                return
+                except Exception as biz_exc:
+                    logger.debug(f"Xiaoyunque biz detail query failed, falling back to landing_page: {biz_exc}")
+
+            # 2. 公开免登录 H5 landing_page 接口兜底
             response = self.session.post(
                 self.API_URL,
                 headers=self.headers,
@@ -77,23 +104,76 @@ class XiaoyunqueParser(BaseParser):
             logger.exception(f"Failed to parse Xiaoyunque share: {exc}")
 
     @classmethod
+    def _format_biz_data(cls, insp):
+        author_info = insp.get("author_info") or {}
+        wm_video = insp.get("watermark_video_info") or {}
+        primary_video = (
+            wm_video.get("brand_user_url")
+            or wm_video.get("download_url")
+            or wm_video.get("brand_url")
+            or wm_video.get("share_url")
+            or wm_video.get("ai_url")
+        )
+        video_list = []
+        for key in ("brand_user_url", "download_url", "brand_url", "share_url", "ai_url"):
+            val = wm_video.get(key)
+            if val and val not in video_list:
+                video_list.append(val)
+
+        title = insp.get("title") or insp.get("prompt")
+        desc = insp.get("prompt") or insp.get("title")
+
+        # 图片信息
+        wm_image = insp.get("watermark_image_info") or {}
+        image_list = []
+        for key in ("download_url", "brand_url", "share_url", "ai_url", "origin_url"):
+            val = wm_image.get(key)
+            if val and val not in image_list:
+                image_list.append(val)
+
+        cover_info = insp.get("cover_info") or {}
+        cover_url = cover_info.get("cover_image_url") or insp.get("cover_url") or insp.get("cover")
+
+        return {
+            "title": title,
+            "desc": desc,
+            "video_url": primary_video,
+            "video_list": video_list,
+            "cover_url": cover_url,
+            "author": {
+                "nickname": author_info.get("nickName") or author_info.get("nickname") or "",
+                "author_id": str(author_info.get("id") or insp.get("uid") or ""),
+                "avatar": author_info.get("avatar") or author_info.get("avatar_url") or "",
+            },
+            "image_list": image_list,
+        }
+
+    @classmethod
     def _format_data(cls, data):
         page_info = data.get("page_info") or {}
         
-        # 寻找命中的有效页面节点（兼容 generate_page, inspiration_page, template_page 等）
+        # 寻找命中的有效页面节点（兼容 generate_page, inspiration_page, template_page, gugu_page 等）
         target_page = {}
-        for key in ("generate_page", "inspiration_page", "template_page", "share_page"):
+        for key in ("generate_page", "inspiration_page", "template_page", "share_page", "gugu_page"):
             if isinstance(page_info.get(key), dict):
                 target_page = page_info[key]
                 break
         if not target_page:
             for val in page_info.values():
-                if isinstance(val, dict) and ("item_info" in val or "user_info" in val):
+                if isinstance(val, dict) and ("item_info" in val or "user_info" in val or "item_list" in val):
                     target_page = val
                     break
 
-        user_info = target_page.get("user_info") or {}
-        item_info = target_page.get("item_info") or {}
+        item_list = target_page.get("item_list")
+        if isinstance(item_list, list) and item_list:
+            curr_idx = target_page.get("current_index")
+            if not isinstance(curr_idx, int) or curr_idx < 0 or curr_idx >= len(item_list):
+                curr_idx = 0
+            item_info = item_list[curr_idx]
+            user_info = item_info.get("author_info") or item_info.get("user_info") or target_page.get("user_info") or {}
+        else:
+            user_info = target_page.get("user_info") or target_page.get("author_info") or {}
+            item_info = target_page.get("item_info") or {}
 
         title = item_info.get("title") or None
         desc = item_info.get("desc") or None
@@ -137,6 +217,13 @@ class XiaoyunqueParser(BaseParser):
 
         # 封面图
         cover_url = item_info.get("cover_url") or item_info.get("poster") or item_info.get("cover")
+        if not cover_url and isinstance(video_info, list):
+            for v in video_info:
+                if isinstance(v, dict) and (v.get("cover_url") or v.get("poster") or v.get("cover")):
+                    cover_url = v.get("cover_url") or v.get("poster") or v.get("cover")
+                    break
+        elif not cover_url and isinstance(video_info, dict):
+            cover_url = video_info.get("cover_url") or video_info.get("poster") or video_info.get("cover")
 
         author = {
             "nickname": user_info.get("nick_name") or user_info.get("nickname") or "",
