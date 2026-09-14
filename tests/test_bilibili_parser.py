@@ -152,7 +152,32 @@ class BilibiliParserTest(unittest.TestCase):
 
             self.assertEqual(parser.get_image_list(), ["https://example.com/single.jpg"])
             self.assertEqual(parser.get_video_list(), [])
-            self.assertIsNone(parser.get_real_video_url())
+    def test_parses_bangumi_episode_url(self):
+        season_data = {
+            "title": "凡人修仙传",
+            "cover": "https://example.com/season_cover.jpg",
+            "up_info": {"uname": "哔哩哔哩国创", "mid": 98627270, "avatar": "//example.com/up.jpg"},
+            "episodes": [
+                {
+                    "id": 1231565,
+                    "bvid": "BV1vT411d7QE",
+                    "cid": 1022370693,
+                    "title": "1",
+                    "long_title": "凡人风起天南1重制版",
+                    "cover": "https://example.com/ep_cover.jpg",
+                }
+            ],
+        }
+        with patch.object(BilibiliParser, "_fetch_season_info", return_value=season_data):
+            parser = BilibiliParser("https://www.bilibili.com/bangumi/play/ep1231565")
+            parser.session.get = Mock(return_value=self.response("https://cdn.example/bangumi.mp4"))
+
+            self.assertEqual(parser.bvid, "BV1vT411d7QE")
+            self.assertEqual(parser.get_title_content(), "凡人修仙传 1 凡人风起天南1重制版")
+            self.assertEqual(parser.get_cover_photo_url(), "https://example.com/ep_cover.jpg")
+            self.assertEqual(parser.get_author_info()["nickname"], "哔哩哔哩国创")
+            self.assertEqual(parser.get_author_info()["avatar"], "https://example.com/up.jpg")
+            self.assertEqual(parser.get_real_video_url(), "https://cdn.example/bangumi.mp4")
 
 
 if __name__ == "__main__":

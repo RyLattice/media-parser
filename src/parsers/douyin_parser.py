@@ -84,13 +84,17 @@ class DouyinParser(BaseParser):
         self.webid = '7307457174287205926'
         self.is_music = bool(self.real_url and ('/music/' in self.real_url or '/share/music/' in self.real_url))
         self.is_collection = bool(self.real_url and ('/collection/' in self.real_url or '/mix/' in self.real_url or '/mix/detail/' in self.real_url))
-        self.is_lvdetail = bool(self.real_url and ('/lvdetail/' in self.real_url or 'ep_id=' in self.real_url or 'episode_id=' in self.real_url or 'album_id=' in self.real_url))
+        self.is_lvdetail = bool(self.real_url and ('/lvdetail/' in self.real_url or 'ep_id=' in self.real_url or 'episode_id=' in self.real_url or 'album_id=' in self.real_url or '/playlet/' in self.real_url or 'playlet_id=' in self.real_url or 'series_id=' in self.real_url))
         self.aweme_id = UrlParser.get_video_id(self.real_url)
         parsed = urllib.parse.urlparse(self.real_url) if self.real_url else None
         q = urllib.parse.parse_qs(parsed.query) if parsed else {}
         self.ep_id = q.get('ep_id', [None])[0] or q.get('episode_id', [None])[0]
-        self.album_id = q.get('album_id', [None])[0]
-        if self.is_lvdetail and not self.ep_id and self.aweme_id:
+        self.album_id = q.get('album_id', [None])[0] or q.get('playlet_id', [None])[0] or q.get('series_id', [None])[0]
+        if not self.album_id and self.real_url:
+            m_playlet = re.search(r'/playlet/detail/(\d+)', self.real_url)
+            if m_playlet:
+                self.album_id = m_playlet.group(1)
+        if self.is_lvdetail and not self.ep_id and self.aweme_id and not self.album_id:
             self.ep_id = self.aweme_id
         # 注意：不在此处预取网页 HTML。抖音 PC 端 /video/{id} 页面现已是纯客户端渲染的空壳
         # （固定 72KB，不含 __UNIVERSAL_DATA_FOR_REHYDRATION__ / aweme_detail / 标题），
@@ -102,6 +106,8 @@ class DouyinParser(BaseParser):
         target_url = self.real_url
         if self.is_lvdetail and getattr(self, 'ep_id', None):
             target_url = f"https://www.douyin.com/lvdetail/{self.ep_id}"
+        elif self.is_lvdetail and getattr(self, 'album_id', None):
+            target_url = f"https://www.douyin.com/share/playlet/detail/{self.album_id}"
         elif self.is_collection and getattr(self, 'aweme_id', None):
             target_url = f"https://www.douyin.com/collection/{self.aweme_id}"
         elif getattr(self, 'aweme_id', None) and 'iesdouyin.com' in (self.real_url or ''):
@@ -585,23 +591,29 @@ class DouyinParser(BaseParser):
                     return ssr_data
             return None
 
-        # 0. 针对放映厅 / 影视长片 / 剧集链接 (/lvdetail/ 或 ep_id)
+        # 0. 针对放映厅 / 影视长片 / 剧集 / 短剧链接 (/lvdetail/ 或 /playlet/ 或 ep_id / album_id)
         if self.is_lvdetail:
             ep_id = self.ep_id or self.aweme_id
             album_id = self.album_id or self.aweme_id
-            referer = f"https://www.douyin.com/lvdetail/{ep_id}"
+            referer = f"https://www.douyin.com/share/playlet/detail/{album_id}" if ('/playlet/' in (self.real_url or '') or 'playlet' in (self.real_url or '')) else f"https://www.douyin.com/lvdetail/{ep_id}"
 
             def _lv_valid(d):
                 return d.get('status_code') == 0 and bool(
                     d.get('lvideo_detail') or d.get('episode_info') or d.get('album_info')
+                    or d.get('series_info') or d.get('playlet_info')
                     or d.get('aweme_list') or d.get('episode_list'))
 
-            candidate_apis = [
-                (f"https://www.douyin.com/aweme/v1/web/series/aweme/?series_id={album_id}"
-                 "&cursor=0&count=20&device_platform=webapp&aid=6383&channel=channel_pc_web"),
-                (f"https://www.douyin.com/aweme/v1/web/lvideo/aweme/?episode_id={ep_id}"
-                 "&device_platform=webapp&aid=6383&channel=channel_pc_web"),
-            ]
+            candidate_apis = []
+            if album_id:
+                candidate_apis.append(
+                    f"https://www.douyin.com/aweme/v1/web/series/aweme/?series_id={album_id}"
+                    "&cursor=0&count=20&device_platform=webapp&aid=6383&channel=channel_pc_web"
+                )
+            if ep_id and ep_id != album_id:
+                candidate_apis.append(
+                    f"https://www.douyin.com/aweme/v1/web/lvideo/aweme/?episode_id={ep_id}"
+                    "&device_platform=webapp&aid=6383&channel=channel_pc_web"
+                )
             for api_url in candidate_apis:
                 # 多候选接口逐个尝试，单个接口分摊一半重试预算，避免最坏情况累积过长
                 data = self._request_api_with_retry(
@@ -614,7 +626,7 @@ class DouyinParser(BaseParser):
                 self.fetch_html_content()
             if self.html_content:
                 ssr_data = self._parse_ssr_data(self.html_content)
-                if ssr_data and (ssr_data.get('lvideo_detail') or ssr_data.get('episode_info') or ssr_data.get('album_info') or ssr_data.get('aweme_detail')):
+                if ssr_data and (ssr_data.get('lvideo_detail') or ssr_data.get('episode_info') or ssr_data.get('album_info') or ssr_data.get('series_info') or ssr_data.get('aweme_detail') or ssr_data.get('aweme_list')):
                     return ssr_data
             return None
 
@@ -991,22 +1003,36 @@ class DouyinParser(BaseParser):
                     return f"【合集】{mix_name}"
 
             if self.is_lvdetail:
+                series_info = data_dict.get('series_info') or (data_dict.get('lvideo_detail') or {}).get('series_info') or data_dict.get('playlet_info') or {}
+                series_title = series_info.get('series_name') or series_info.get('title') or series_info.get('name') or ''
+
                 album_info = data_dict.get('album_info') or (data_dict.get('lvideo_detail') or {}).get('album_info') or {}
                 album_title = album_info.get('album_name') or album_info.get('title') or album_info.get('name') or ''
 
                 ep_info = data_dict.get('episode_info') or (data_dict.get('lvideo_detail') or {}).get('episode_info') or {}
                 if not ep_info and data_dict.get('episode_list'):
                     ep_info = data_dict['episode_list'][0]
-                ep_title = ep_info.get('episode_name') or ep_info.get('title') or ''
+                elif not ep_info and data_dict.get('aweme_list'):
+                    aw0 = data_dict['aweme_list'][0]
+                    ep_info = aw0.get('episode_info') or aw0
 
-                if album_title and ep_title and album_title != ep_title:
-                    return f"【放映厅】{album_title} - {ep_title}"
-                if album_title:
-                    return f"【放映厅】{album_title}"
+                ep_title = ep_info.get('episode_name') or ep_info.get('title') or ep_info.get('itemTitle') or ''
+
+                prefix = "【短剧】" if ('/playlet/' in (self.real_url or '') or 'playlet' in (self.real_url or '') or series_title) else "【放映厅】"
+                main_title = series_title or album_title
+                if main_title and ep_title and main_title != ep_title:
+                    return f"{prefix}{main_title} - {ep_title}"
+                if main_title:
+                    return f"{prefix}{main_title}"
                 if ep_title:
-                    return f"【放映厅】{ep_title}"
+                    return f"{prefix}{ep_title}"
 
             if not data_dict.get('aweme_detail'):
+                if data_dict.get('aweme_list'):
+                    aw0 = data_dict['aweme_list'][0]
+                    t = aw0.get('itemTitle') or aw0.get('desc')
+                    if t:
+                        return t
                 return None
             aweme = data_dict['aweme_detail']
             title = aweme.get('itemTitle') or None
@@ -1049,6 +1075,16 @@ class DouyinParser(BaseParser):
                     return url_list[0]
 
             if self.is_lvdetail:
+                series_info = data_dict.get('series_info') or (data_dict.get('lvideo_detail') or {}).get('series_info') or data_dict.get('playlet_info') or {}
+                for k in ('cover_url', 'poster_url', 'horizontal_cover', 'vertical_cover', 'verticalCover', 'cover'):
+                    val = series_info.get(k)
+                    if isinstance(val, dict):
+                        url_list = val.get('url_list') or val.get('urlList') or []
+                        if url_list:
+                            return url_list[0]
+                    elif isinstance(val, str) and val:
+                        return val
+
                 album_info = data_dict.get('album_info') or (data_dict.get('lvideo_detail') or {}).get('album_info') or {}
                 for k in ('cover_url', 'poster_url', 'horizontal_cover', 'vertical_cover', 'verticalCover', 'cover'):
                     val = album_info.get(k)
@@ -1062,6 +1098,8 @@ class DouyinParser(BaseParser):
                 ep_info = data_dict.get('episode_info') or (data_dict.get('lvideo_detail') or {}).get('episode_info') or {}
                 if not ep_info and data_dict.get('episode_list'):
                     ep_info = data_dict['episode_list'][0]
+                elif not ep_info and data_dict.get('aweme_list'):
+                    ep_info = data_dict['aweme_list'][0]
                 for k in ('cover_url', 'poster_url', 'dynamic_cover', 'cover'):
                     val = ep_info.get(k)
                     if isinstance(val, dict):

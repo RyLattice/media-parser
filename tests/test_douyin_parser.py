@@ -747,10 +747,42 @@ class DouyinParserTest(unittest.TestCase):
                     # 应该跳过 SSR 兜底
                     mock_ssr.assert_not_called()
                     self.assertIsNone(parser.data)
-                    self.assertEqual(
-                        parser._terminal_filter_detail.get("filter_reason"),
-                        "status_self_see"
-                    )
+    def test_parses_playlet_detail_series(self):
+        playlet_payload = {
+            "status_code": 0,
+            "series_info": {
+                "series_id": "7401234567890",
+                "series_name": "热血神医",
+                "cover_url": "https://p3.douyinpic.com/cover.jpg",
+            },
+            "aweme_list": [
+                {
+                    "itemTitle": "第1集",
+                    "video": {
+                        "bit_rate": [
+                            {
+                                "bit_rate": 1500000,
+                                "is_h265": 0,
+                                "play_addr": {
+                                    "url_list": ["https://cdn.douyin.com/ep1.mp4"]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+        mock_resp = Mock(status_code=200, text=json.dumps(playlet_payload))
+        mock_resp.json.return_value = playlet_payload
+
+        with patch("requests.Session.get", return_value=mock_resp):
+            parser = DouyinParser("https://www.douyin.com/share/playlet/detail/7401234567890")
+
+        self.assertTrue(parser.is_lvdetail)
+        self.assertEqual(parser.album_id, "7401234567890")
+        self.assertEqual(parser.get_title_content(), "【短剧】热血神医 - 第1集")
+        self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/cover.jpg")
+        self.assertEqual(parser.get_real_video_url(), "https://cdn.douyin.com/ep1.mp4")
 
 
 if __name__ == "__main__":

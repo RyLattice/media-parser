@@ -9,15 +9,16 @@
 * **平台标识**：`抖音`
 * **支持媒体类型**：
   * 无水印高清视频 (智能码率排序，优先选取兼容性最好的 H.264 编码，无缝兼容 H.265/HEVC)
-  * 放映厅 / 影视长片 / 连载短剧 (单集与全集列表 `video_list`，标题 `【放映厅】{album_name} - {episode_name}`)
+  * 放映厅 / 影视长片 / 连载短剧 / 剧场短片 (单集与全集列表 `video_list`，标题 `【放映厅】...` 或 `【短剧】...`)
   * 高清图文图集 (无水印原图)
   * 动态实况照片 (LivePhoto 动态视频流)
   * 背景音乐 / 独立原声 (Audio MP3)
-  * 连载合集 / 短剧专题 (多分集视频列表 `video_list`)
+  * 连载合集 / 短剧专题 / 短剧详情页 (多分集视频列表 `video_list`，支持 `/share/playlet/detail/<id>`)
   * 原生 AI 生成字幕 (WebVTT 格式，含多语言代码与字幕 ID)
 * **常见链接形态**：
   * 短链接：`https://v.douyin.com/Nid-fFF_sdI/`
   * 网页端放映厅长片长链：`https://www.douyin.com/lvdetail/7677129845654061595`
+  * 网页端短剧详情长链：`https://www.douyin.com/share/playlet/detail/7604472147116556322` 或 `https://www.douyin.com/playlet/detail/...`
   * 网页端视频长链：`https://www.douyin.com/video/7616399587141737704`
   * 网页端图文长链：`https://www.douyin.com/note/7616399587141737704`
   * 网页端独立音乐长链：`https://www.douyin.com/music/7123456789012345678`
@@ -158,8 +159,10 @@ abogus = signer.get_abogus(play_url, signer.user_agent)
 * 当传入 `/collection/{mix_id}` 合集链接时，提取全集列表并注入 `video_list`，首集作为 `video_url`；
 * 标题自动规范为 `【合集】{mix_name}`，封面提取合集官方封面。
 
-### 4.5 放映厅 / 影视长片 / 演唱会大片 (`/lvdetail/`)
-* **剧集与直拍选集**：解析 `lvideoBrief.albumInfo` 与 `lvideoBrief.episodeInfo`，标题自动格式化为 `【放映厅】{album_name} - {episode_name}`；
+### 4.5 放映厅 / 影视长片 / 连载短剧 (`/lvdetail/` 与 `/share/playlet/detail/`)
+* **剧集与短剧选集**：
+  * 放映厅长片解析 `lvideoBrief.albumInfo` 与 `lvideoBrief.episodeInfo`，标题自动格式化为 `【放映厅】{album_name} - {episode_name}`；
+  * 剧场短剧 (`/playlet/detail/<id>`) 解析 `series_title` / `playlet_info`，标题自动格式化为 `【短剧】{series_title} - 第{ep}集`；
 * **超清音视频分离提取**：从 `videoModel.dynamicVideo` 提取最高清 H.264 视频流（`video_url`）与独立音轨（`audio_url`）；
 * 💡 **关于「抖音独播/独家」画面角标**：部分独播影视与演唱会长片画面右上角会显示「抖音 独播」或「独家」标签，该角标属于官方源片入库转码时**硬编码（Burned-in）压制进视频每一帧画面中的电视台标式台标**（即使在官方 App 内离线缓存也是带标的），提取到的已是官方服务器存储的最高清原始片源。
 

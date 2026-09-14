@@ -185,7 +185,7 @@ class UrlParser:
         elif platform == "抖音":
             query_params = parse_qs(parsed_url.query)
             preserved_params = []
-            for key in ('modal_id', 'ep_id', 'album_id', 'episode_id'):
+            for key in ('modal_id', 'ep_id', 'album_id', 'episode_id', 'playlet_id', 'series_id'):
                 value = query_params.get(key, [None])[0]
                 if value is not None:
                     preserved_params.append((key, value))
@@ -368,7 +368,7 @@ class UrlParser:
         elif platform == "通义千问":
             query_params = parse_qs(parsed_url.query)
             preserved_params = []
-            for key in ("shareId", "authorId", "enter_from", "fp_from", "channel_from", "image_index"):
+            for key in ("shareId", "share_id", "authorId", "author_id", "bizId", "biz_id", "enter_from", "fp_from", "channel_from", "image_index", "qwcontainer", "env"):
                 value = query_params.get(key, [None])[0]
                 if value is not None:
                     preserved_params.append((key, value))
@@ -503,6 +503,12 @@ class UrlParser:
             params_album_id = query_params.get('album_id', [None])[0]
             if params_album_id:
                 return params_album_id
+            params_playlet_id = query_params.get('playlet_id', [None])[0]
+            if params_playlet_id:
+                return params_playlet_id
+            params_series_id = query_params.get('series_id', [None])[0]
+            if params_series_id:
+                return params_series_id
             params_v = query_params.get('v', [None])[0]
             if params_v:
                 return params_v

@@ -56,6 +56,43 @@ class QianwenParserTest(unittest.TestCase):
             },
         )
 
+    def test_parses_qianwen_chat2_spa_api(self):
+        api_data = {
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "title": "图片人物美白处理",
+                "session": {
+                    "title": "修图建议：去旁人，亮肤色",
+                    "record_list": [
+                        {
+                            "request_messages": [{"content": "将图中人物变白"}],
+                            "response_messages": [
+                                {
+                                    "display_list": [
+                                        {
+                                            "image": [{"url": "https://workspace-zb-cdn.qianwen.com/test_output.png"}]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        api_resp = Mock()
+        api_resp.status_code = 200
+        api_resp.json.return_value = api_data
+
+        url = "https://qianwen.my.cn/share/chat/84c5660504a44063bec11136615b9256"
+        with patch("requests.Session.post", return_value=api_resp):
+            parser = QianwenParser(url)
+
+        self.assertEqual(parser.get_title_content(), "图片人物美白处理")
+        self.assertIsNone(parser.get_cover_photo_url())
+        self.assertEqual(parser.get_image_list(), ["https://workspace-zb-cdn.qianwen.com/test_output.png"])
+
     def test_invalid_url_handles_gracefully(self):
         parser = QianwenParser("https://activity.qianwen.com/invalid")
         self.assertEqual(parser.get_title_content(), "")
