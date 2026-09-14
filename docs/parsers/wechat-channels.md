@@ -70,16 +70,14 @@ flowchart TD
 
 ---
 
-## 4. Cookie 配置指南 (双轨热更新)
+## 4. Cookie 配置指南
 
 1. 打开浏览器访问 [腾讯元宝网页版](https://yuanbao.tencent.com/) 并登录账号（建议使用闲置小号）。
 2. 按 `F12` 打开开发者工具，在 **Application ➔ Cookies** 中提取核心登录凭证：`hy_user` 与 `hy_token`。
-3. 配置生效方式（支持以下任意一种）：
-   * **方式 1：管理后台可视化配置（推荐）**：登录后台 `http://127.0.0.1:8051/admin/settings`，在【平台凭据 (Cookie)】中填入 `hy_user=xxx; hy_token=yyy` 保存，即刻热生效。
-   * **方式 2：环境变量 / `.env` 注入**：
-     ```env
-     YUANBAO_COOKIE="hy_user=你的hy_user值; hy_token=你的hy_token值"
-     ```
+3. 在 `.env` 中按需配置：
+   ```env
+   YUANBAO_COOKIE="hy_user=你的hy_user值; hy_token=你的hy_token值"
+   ```
 
 ---
 

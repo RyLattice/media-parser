@@ -10,7 +10,6 @@ from werkzeug.security import generate_password_hash
 from configs.general_constants import DOMAIN_TO_NAME
 from src.auth import admin_required, csrf_protected, format_log_time, generate_api_key, hash_api_key
 from src.db import get_daily_trend, get_db, get_platform_distribution, get_top_users, set_setting, utcnow
-from src.utils.cookie_manager import SUPPORTED_COOKIE_SETTINGS
 from src.utils.table_query import paginate_memory_list, query_paginated_table
 
 
@@ -111,7 +110,6 @@ def settings():
     return render_template(
         "admin/settings.html",
         settings=settings,
-        cookie_settings=SUPPORTED_COOKIE_SETTINGS,
         active_nav="settings",
     )
 
@@ -147,12 +145,6 @@ def update_settings():
     set_setting("api_tip_author", (request.form.get("api_tip_author") or "").strip() or "ucmao")
     set_setting("api_tip_website", (request.form.get("api_tip_website") or "").strip() or "https://github.com/ucmao/media-parser")
     set_setting("api_tip_notice", (request.form.get("api_tip_notice") or "").strip() or "本接口由开源项目 media-parser 提供服务")
-
-    # 保存平台 Cookie 与凭据（支持后台热更新）
-    for item in SUPPORTED_COOKIE_SETTINGS:
-        key = item["key"]
-        if key in request.form:
-            set_setting(key, request.form.get(key, "").strip())
 
     db.commit()
 

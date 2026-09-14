@@ -16,11 +16,6 @@
                 {{ icon('shield', 'w-3.5 h-3.5') }}
                 <span>服务与访问控制</span>
             </button>
-            <button type="button" onclick="switchSettingsTab('cookies')" id="tab-btn-cookies"
-                class="tab-nav-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900">
-                {{ icon('key', 'w-3.5 h-3.5') }}
-                <span>平台凭据 (Cookie)</span>
-            </button>
             <button type="button" onclick="switchSettingsTab('branding')" id="tab-btn-branding"
                 class="tab-nav-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900">
                 {{ icon('tag', 'w-3.5 h-3.5') }}
@@ -201,57 +196,7 @@
                 </section>
             </div>
 
-            <!-- Tab 2: 平台凭据与 Cookie -->
-            <div id="tab-content-cookies" class="space-y-6 tab-panel" style="display: none;">
-                <section class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
-                    <div class="border-b border-slate-100 pb-3">
-                        <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            <span class="text-brand flex items-center justify-center">{{ icon('key', 'w-4 h-4') }}</span>
-                            第三方平台凭据与 Cookie 配置
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-1">配置各平台访问凭据与风控通行证。后台保存即刻热生效，无需重启服务；未配置项将自动回退读取服务器环境变量。</p>
-                    </div>
-
-                    <div class="space-y-4">
-                        {% for item in cookie_settings %}
-                        <div class="p-4 rounded-xl bg-slate-50/60 border border-slate-200/70 space-y-2.5">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-semibold text-xs text-slate-900">{{ item.name }}</span>
-                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200/60 text-slate-600">环境变量兜底: {{ item.env }}</span>
-                                </div>
-                                <span class="text-[11px] text-slate-400">失焦或回车自动保存</span>
-                            </div>
-                            <p class="text-[11px] text-slate-500 leading-relaxed">{{ item.description }}</p>
-                            <div class="relative">
-                                <input type="text"
-                                    name="{{ item.key }}"
-                                    id="input_{{ item.key }}"
-                                    value="{{ settings.get(item.key, '') }}"
-                                    placeholder="{{ item.placeholder }}"
-                                    onchange="triggerSettingsSubmit(this)"
-                                    class="w-full pl-3.5 pr-28 py-2 text-xs font-mono rounded-lg border border-slate-200 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition bg-white">
-                                {% if settings.get(item.key) %}
-                                <span class="absolute inset-y-0 right-2 flex items-center">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                                        后台已配置
-                                    </span>
-                                </span>
-                                {% else %}
-                                <span class="absolute inset-y-0 right-2 flex items-center">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
-                                        未配置 (读 ENV)
-                                    </span>
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </section>
-            </div>
-
-            <!-- Tab 3: API 响应水印与版权提示 -->
+            <!-- Tab 2: API 响应水印与版权提示 -->
             <div id="tab-content-branding" class="space-y-6 tab-panel" style="display: none;">
                 {% set tip_enabled = (settings.get('api_tip_enabled', '1') == '1') %}
                 <section class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
@@ -336,7 +281,7 @@
 
 <script>
     window.switchSettingsTab = function (tabKey) {
-        const tabs = ['access', 'cookies', 'branding'];
+        const tabs = ['access', 'branding'];
         tabs.forEach(key => {
             const btn = document.getElementById('tab-btn-' + key);
             const panel = document.getElementById('tab-content-' + key);
@@ -528,9 +473,6 @@
         if (name === 'api_tip_author' || name === 'api_tip_website' || name === 'api_tip_notice') {
             return 'API 版权提示内容已更新';
         }
-        if (name && name.endsWith('_cookie')) {
-            return '平台凭据与 Cookie 配置已更新';
-        }
         return '系统设置已保存';
     }
 
@@ -554,7 +496,7 @@
             const hash = window.location.hash;
             if (hash.includes('tab=')) {
                 const tabKey = hash.split('tab=')[1].trim();
-                if (['access', 'cookies', 'branding'].includes(tabKey)) {
+                if (['access', 'branding'].includes(tabKey)) {
                     switchSettingsTab(tabKey);
                 }
             }

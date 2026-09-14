@@ -91,35 +91,33 @@
 pip install -r requirements.txt
 ```
 
-### 2. 平台凭据与 Cookie 配置 (双轨支持，开箱即用)
+### 2. 环境变量与 Cookie 配置 (可选，开箱即用)
 
-本项目绝大部分平台**完全免 Cookie 开箱即用**。针对少数平台的风控或高级权限，支持两种配置方式：
+本项目绝大部分平台**完全免 Cookie 开箱即用**。如需增强特定平台的高清流或防风控能力，复制 `.env.example` 为 `.env` 按需配置：
 
-* **方式 A：管理后台可视化配置（推荐）**：启动服务后登录后台 `http://127.0.0.1:8051/admin/settings`，在【平台凭据 (Cookie)】Tab 中直接粘贴保存，**即刻热生效，免重启**。
-* **方式 B：环境变量 / `.env` 注入**：复制 `.env.example` 为 `.env` 按需配置：
-  ```bash
-  cp .env.example .env
-  ```
-  ```env
-  # 1. 小红书 Cookie（可选，若遭遇验证码或反爬拦截时配置）
-  XHS_COOKIE="a1=xxx; webId=yyy; web_session=zzz;"
+```bash
+cp .env.example .env
+```
 
-  # 2. 抖音放映厅 Cookie（可选，仅 1% 的 /lvdetail/ 长片需要）
-  DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
+```env
+# 1. 豆包无水印视频 (可选，用于获取 1080P 原始无水印视频)
+DOUBAO_COOKIE="sessionid_ss=your_doubao_sessionid_ss"
 
-  # 3. 豆包 AI Cookie（可选，用于获取 1080P 原始无水印视频）
-  DOUBAO_COOKIE="sessionid_ss=your_doubao_sessionid_ss"
+# 2. 微信视频号高清流 (可选，提取视频号原始流、图集与原声音频，建议使用小号)
+YUANBAO_COOKIE="hy_user=xxx; hy_token=yyy;"
 
-  # 4. 腾讯元宝 Cookie（可选，用于提取视频号原始流与图集，建议使用小号）
-  YUANBAO_COOKIE="hy_user=xxx; hy_token=yyy;"
+# 3. 小红书防风控 / 高频解析 (可选，解决服务器 IP 遭遇的 302 登录拦截)
+XHS_COOKIE="a1=xxx; webId=yyy; web_session=zzz;"
 
-  # 5. 拼多多 Cookie（可选，用于多多视频原画解析，需包含 PDDAccessToken）
-  PINDUODUO_COOKIE="PDDAccessToken=xxx;"
+# 4. 抖音放映厅长视频 (可选，仅在解析 /lvdetail/ 长片时需要)
+DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
 
-  # 6. 哔哩哔哩 Cookie（可选，用于获取 1080P+ 高码率播放流）
-  BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"
-  ```
-* **方式 C：CLI 运维脚本**：通过 `python scripts/set_cookie.py set <platform> "<cookie>"` 直接设置。
+# 5. 哔哩哔哩高码率 (可选，用于提取 1080P+ 高码率/4K 及大会员专区番剧)
+BILIBILI_COOKIE="SESSDATA=xxx; bili_jct=yyy;"
+
+# 6. 拼多多多多视频 (可选，用于多多短视频信息流原画解析)
+PINDUODUO_COOKIE="PDDAccessToken=xxx;"
+```
 
 ### 3. 运行服务
 ```bash

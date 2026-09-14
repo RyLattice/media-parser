@@ -18,11 +18,7 @@
   * 商品长链：`https://mobile.yangkeduo.com/goods.html?goods_id=...`
 * **Cookie 依赖**：
   * **商品实物短链 (`ps=` / `_oak_share_url`)**：无需 Cookie，直接提取高清原图。
-  * **多多视频 (`feed_id`)**：官方接口强风控校验，需要已登录账号的 Cookie (`PINDUODUO_COOKIE`，须包含 `PDDAccessToken`)。
-    * **配置方式（双轨热更新）**：
-      1. **管理后台热配置（推荐）**：在管理后台「系统设置 - 平台凭据」填入拼多多 Cookie，保存即刻生效。
-      2. **环境变量注入**：在 `.env` 中配置 `PINDUODUO_COOKIE="PDDAccessToken=xxx;"`。
-    * 未配置或失效时接口返回 `PINDUODUO_COOKIE_REQUIRED`。
+  * **多多视频 (`feed_id`)**：官方接口强风控校验，需要在 `.env` 中配置已登录账号的 Cookie (`PINDUODUO_COOKIE="PDDAccessToken=xxx;"`)；未配置或失效时接口返回 `PINDUODUO_COOKIE_REQUIRED`。
 
 ---
 

@@ -65,8 +65,6 @@ media-parser/
 │   ├── reverse-guide.md       # 通用逆向方法论 (抓包/SSR/JS签名提取)
 │   ├── testing.md             # 完整测试规范与回归手册
 │   └── parsers/               # 平台逆向分析手册
-├── scripts/                   # 运维与工具脚本
-│   └── set_cookie.py          # 命令行 Cookie 查看与设置工具
 ├── src/                       # 核心业务逻辑
 │   ├── api/                   # RESTful API 路由 (/api/parse, /api/health)
 │   ├── database/              # SQLite 存储管理 (系统设置/用户/API Key/调用日志)

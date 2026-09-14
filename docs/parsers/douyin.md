@@ -25,9 +25,7 @@
   * 网页端合集长链：`https://www.douyin.com/collection/7123456789012345678`
 * **Cookie 依赖**：
   * **普通作品与图文 (100%)**：完全无需用户登录 Cookie。常规视频直连**移动端 Feed 核心通道**（免 Argus 门禁、免 Cookie、免签名、毫秒级直出）；图文作品自动回退 Web API 与动态 TTWID 快速重试兜底。
-  * **放映厅长片 (`/lvdetail/`)**：受字节跳动严格风控保护，可配置 `DOUYIN_COOKIE`（仅需风控通行证 `s_v_web_id` 与 `__ac_nonce`，无需个人账号登录凭证）：
-    1. **管理后台热配置（推荐）**：在管理后台「系统设置 - 平台凭据」中配置 `douyin_cookie`，热更新免重启。
-    2. **环境变量兜底**：在 `.env` 中配置 `DOUYIN_COOKIE="s_v_web_id=...; __ac_nonce=..."`。
+  * **放映厅长片 (`/lvdetail/`)**：受字节跳动严格风控保护，可在 `.env` 中配置 `DOUYIN_COOKIE="s_v_web_id=...; __ac_nonce=..."`（仅需风控通行证，无需个人账号登录凭证）。
 
 ---
 
