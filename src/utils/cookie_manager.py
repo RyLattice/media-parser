@@ -9,6 +9,7 @@ PLATFORM_COOKIE_ALIASES = {
     "yuanbao": ["YUANBAO_COOKIE"],
     "wechat_channels": ["YUANBAO_COOKIE", "WECHAT_CHANNELS_COOKIE"],
     "doubao": ["DOUBAO_COOKIE"],
+    "jimeng": ["JIMENG_COOKIE"],
     "bilibili": ["BILIBILI_COOKIE", "BILI_COOKIE"],
     "weibo": ["WEIBO_COOKIE"],
     "kuaishou": ["KUAISHOU_COOKIE", "KS_COOKIE"],

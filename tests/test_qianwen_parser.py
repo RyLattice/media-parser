@@ -46,7 +46,7 @@ class QianwenParserTest(unittest.TestCase):
 
         self.assertEqual(parser.get_title_content(), "给右边男生的黑色卫衣换成灰色")
         self.assertIsNone(parser.get_cover_photo_url())
-        self.assertEqual(parser.get_image_list(), ["https://quark-aistudio-cdn.quark.cn/test1.png"])
+        self.assertEqual(parser.get_image_list(), ["https://quark-aistudio-cdn.quark.cn/test1_preview.png"])
         self.assertEqual(
             parser.get_author_info(),
             {

@@ -145,7 +145,7 @@ class QianwenParser(BaseParser):
         img_urls = []
         for img in images_raw:
             if isinstance(img, dict):
-                url = img.get("downloadUrl") or img.get("url")
+                url = img.get("url") or img.get("downloadUrl")
                 if url:
                     img_urls.append(url)
             elif isinstance(img, str):

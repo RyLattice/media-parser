@@ -3,6 +3,7 @@ from urllib.parse import parse_qs, urlparse
 from configs.logging_config import get_logger
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
+from src.utils.cookie_manager import get_platform_cookie
 
 
 logger = get_logger(__name__)
@@ -18,6 +19,7 @@ class JimengParser(BaseParser):
     CAMPAIGN_API_URL = (
         "https://jimeng.jianying.com/luckycat/cn/jianying/campaign/v1/dreamina/share/landing_page"
     )
+    COMPETITION_PREVIEW_API = "https://jimeng.jianying.com/competition/v1/preview_video"
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -31,6 +33,12 @@ class JimengParser(BaseParser):
             "Content-Type": "application/json",
             "User-Agent": self.USER_AGENT,
         }
+        cookie = get_platform_cookie("jimeng")
+        if cookie:
+            self.headers["Cookie"] = cookie
+            self.headers["appid"] = "581595"
+            self.headers["device-platform"] = "web"
+
         self.data = {
             "title": "",
             "video_url": None,
@@ -61,35 +69,91 @@ class JimengParser(BaseParser):
                 if not item_id and response.text:
                     item_id = self._extract_item_id_from_html(response.text)
 
-            # 1. 活动/回流/同款链接优先调用官方 campaign landing_page 接口
-            if "reflux" in target_url or "mproject" in target_url:
-                if self._try_parse_campaign_api(target_url, item_id):
-                    return
-
-            # 2. 标准已发布社区作品调用官方 mweb get_item_info 接口
+            # 1. 若有 item_id，优先请求官方 mweb get_item_info 接口 (信息最全且带多清晰度原画流)
             if item_id:
-                response = self.session.post(
-                    self.API_URL,
-                    headers=self.headers,
-                    json={"published_item_id": item_id},
-                    timeout=30,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                if str(payload.get("ret")) == "0":
-                    self.data.update(self._format_data(payload.get("data") or {}))
-                    return
-
-                # 若提示 itemId 不存在或非社区公开作品，自动降级至 campaign landing_page 接口
-                errmsg = str(payload.get("errmsg") or "")
-                if "itemId not exist" in errmsg or str(payload.get("ret")) in ("2032", "1000"):
-                    if self._try_parse_campaign_api(target_url, item_id):
+                try:
+                    response = self.session.post(
+                        self.API_URL,
+                        headers=self.headers,
+                        json={"published_item_id": item_id},
+                        timeout=30,
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
+                    if str(payload.get("ret")) == "0":
+                        detail = payload.get("data") or {}
+                        self.data.update(self._format_data(detail))
                         return
-                raise ValueError(errmsg or "即梦接口返回解析失败")
-            else:
-                logger.warning(f"Unable to extract Jimeng item ID: {self.real_url}")
+                    
+                    # 若提示 itemId 不存在或非社区公开作品，自动降级至 campaign landing_page 接口
+                    errmsg = str(payload.get("errmsg") or "")
+                    if "itemId not exist" in errmsg or str(payload.get("ret")) in ("2032", "1000"):
+                        if self._try_parse_campaign_api(target_url, item_id):
+                            return
+                except Exception as e:
+                    logger.debug(f"Jimeng get_item_info attempt error: {e}")
+
+            # 2. 针对同款/回流/未发布草稿链接尝试调用官方 campaign landing_page 接口
+            if ("reflux" in target_url or "mproject" in target_url or "share_token" in target_url) and self._try_parse_campaign_api(target_url, item_id):
+                return
+
+            if not self.data.get("video_url") and not self.data.get("image_list"):
+                if not item_id:
+                    logger.warning(f"Unable to extract Jimeng item ID: {self.real_url}")
+                else:
+                    logger.warning(f"Failed to fetch Jimeng media for item {item_id}")
         except Exception as exc:
             logger.exception(f"Failed to parse Jimeng share: {exc}")
+
+    def _try_fetch_competition_preview(self, video_id):
+        if not video_id:
+            return None
+        try:
+            res = self.session.post(
+                self.COMPETITION_PREVIEW_API,
+                headers=self.headers,
+                json={"video_id": str(video_id)},
+                timeout=15,
+            )
+            if res.status_code == 200:
+                payload = res.json()
+                if str(payload.get("ret")) == "0" and payload.get("data"):
+                    return payload["data"].get("video_preview")
+        except Exception as exc:
+            logger.debug(f"Jimeng competition preview request failed: {exc}")
+        return None
+
+    @classmethod
+    def _format_competition_preview_data(cls, preview):
+        if not isinstance(preview, dict):
+            return {}
+        origin_video = preview.get("origin_video") or {}
+        transcoded = preview.get("transcoded_video") or {}
+
+        primary_video = None
+        transcoded_origin = transcoded.get("origin")
+        if isinstance(transcoded_origin, dict):
+            primary_video = transcoded_origin.get("video_url")
+        if not primary_video:
+            primary_video = origin_video.get("video_url")
+        if not primary_video:
+            primary_video = cls._best_transcoded_url(transcoded)
+
+        primary_video = cls._sanitize_video_url(primary_video)
+        video_list = []
+        if primary_video:
+            video_list.append(primary_video)
+        if isinstance(transcoded, dict):
+            for item in transcoded.values():
+                if isinstance(item, dict) and item.get("video_url"):
+                    u = cls._sanitize_video_url(item["video_url"])
+                    if u and u not in video_list:
+                        video_list.append(u)
+
+        return {
+            "video_url": primary_video,
+            "video_list": video_list,
+        }
 
     def _try_parse_campaign_api(self, url, item_id):
         try:
@@ -286,9 +350,12 @@ class JimengParser(BaseParser):
         if not url or not isinstance(url, str):
             return url
         import re
+        # 彻底移除各类 lr 水印参数
         url = re.sub(r'&lr=[^&]+', '', url)
         url = re.sub(r'\?lr=[^&]+&', '?', url)
-        url = url.replace('cd=0%7C0%7C1%7C3', 'cd=0%7C0%7C0%7C3').replace('cd=0|0|1|3', 'cd=0|0|0|3')
+        url = re.sub(r'\?lr=[^&]+$', '', url)
+        # 将各类 cd 控制参数中的水印位(第三位) 由 1 强制置为 0 (如 cd=0|0|1|0 -> cd=0|0|0|0 或 cd=0%7C0%7C1%7C3 -> cd=0%7C0%7C0%7C3)
+        url = re.sub(r'cd=0(%7C|\|)0(%7C|\|)1(%7C|\|)(\d+)', r'cd=0\g<1>0\g<2>0\g<3>\g<4>', url)
         return url
 
     @staticmethod

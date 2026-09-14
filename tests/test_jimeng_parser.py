@@ -269,6 +269,28 @@ class JimengParserTest(unittest.TestCase):
         self.assertEqual(parser.get_title_content(), "降级成功视频")
         self.assertEqual(parser.get_author_info()["nickname"], "官方作者")
 
+    def test_sanitize_video_url_strips_all_watermarks(self):
+        cases = [
+            (
+                "https://v3.jimeng.com/v?a=4066&lr=display_watermark_ending&cd=0%7C0%7C1%7C0&cv=1",
+                "https://v3.jimeng.com/v?a=4066&cd=0%7C0%7C0%7C0&cv=1",
+            ),
+            (
+                "https://v3.jimeng.com/v?a=4066&cd=0|0|1|3&cv=1",
+                "https://v3.jimeng.com/v?a=4066&cd=0|0|0|3&cv=1",
+            ),
+            (
+                "https://v3.jimeng.com/v?a=4066&cd=0%7C0%7C1%7C3&cv=1",
+                "https://v3.jimeng.com/v?a=4066&cd=0%7C0%7C0%7C3&cv=1",
+            ),
+            (
+                "https://v3.jimeng.com/v?a=4066&cd=0%7C0%7C1%7C4&lr=display_watermark_ending",
+                "https://v3.jimeng.com/v?a=4066&cd=0%7C0%7C0%7C4",
+            ),
+        ]
+        for raw, expected in cases:
+            self.assertEqual(JimengParser._sanitize_video_url(raw), expected)
+
 
 if __name__ == "__main__":
     unittest.main()
