@@ -38,6 +38,43 @@ class ZuiyouParserTest(unittest.TestCase):
             {"nickname": "测试作者", "author_id": "42", "avatar": "https://image.example.com/avatar.jpg"},
         )
 
+    def test_extracts_images_and_cover_for_photo_post(self):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "data": {
+                "post": {
+                    "content": "测试图文帖子",
+                    "imgs": [
+                        {
+                            "id": 1001,
+                            "urls": {
+                                "origin": {"urls": ["https://image.example.com/origin1.jpg"]},
+                                "360": {"urls": ["https://image.example.com/thumb1.jpg"]},
+                            },
+                        },
+                        {
+                            "id": 1002,
+                            "urls": {
+                                "540": {"urls": ["https://image.example.com/540_2.jpg"]},
+                            },
+                        },
+                    ],
+                    "member": {"id": 1, "name": "作者"},
+                }
+            }
+        }
+
+        with patch("requests.Session.post", return_value=response):
+            parser = ZuiyouParser("https://share.xiaochuankeji.cn/hybrid/share/post?pid=123")
+
+        self.assertIsNone(parser.get_real_video_url())
+        self.assertEqual(
+            parser.get_image_list(),
+            ["https://image.example.com/origin1.jpg", "https://image.example.com/540_2.jpg"],
+        )
+        self.assertEqual(parser.get_cover_photo_url(), "https://image.example.com/origin1.jpg")
+
     def test_skips_request_without_post_id(self):
         with patch("requests.Session.post") as post:
             parser = ZuiyouParser("https://share.xiaochuankeji.cn/hybrid/share/post")

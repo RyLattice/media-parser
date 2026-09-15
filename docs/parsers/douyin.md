@@ -17,6 +17,7 @@
   * 原生 AI 生成字幕 (WebVTT 格式，含多语言代码与字幕 ID)
 * **常见链接形态**：
   * 短链接：`https://v.douyin.com/Nid-fFF_sdI/`
+  * 移动网页端分享长链：`https://m.douyin.com/share/video/7685345542323834441`
   * 网页端放映厅长片长链：`https://www.douyin.com/lvdetail/7677129845654061595`
   * 网页端短剧详情长链：`https://www.douyin.com/share/playlet/detail/7604472147116556322` 或 `https://www.douyin.com/playlet/detail/...`
   * 网页端视频长链：`https://www.douyin.com/video/7616399587141737704`

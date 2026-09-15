@@ -143,6 +143,7 @@ class UrlParserTest(unittest.TestCase):
             ("https://baijiahao.baidu.com/s?id=123", "好看视频"),
             ("https://m.baidu.com/sf/v_search?pd=video", "好看视频"),
             ("https://mbd.baidu.com/newspage/data/videolanding?nid=123", "好看视频"),
+            ("https://m.douyin.com/share/video/7685345542323834441", "抖音"),
             ("https://m.toutiao.com/is/669xD9UIQfI/", "今日头条"),
             ("https://www.toutiao.com/video/123/", "今日头条"),
             ("https://qianwen.my.cn/share/chat/e16bbf94a34d4b88acd7ed1214f", "通义千问"),
