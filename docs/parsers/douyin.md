@@ -38,7 +38,7 @@
 
 ## 3. 核心逆向方案与多轨容灾机制
 
-抖音解析采用 **移动端 Feed 免 Argus 门禁主路径 + Web API 退避重试兜底 + SSR HTML 多级容灾 + 流式 SSR (RSC) 深度解析** 的异构高可用架构。
+抖音解析采用 **移动端 Feed 免 Argus 门禁主路径 + 移动端分享页 SSR 免签名次主路径 + Web API 退避重试兜底 + SSR HTML 末级容灾 + 流式 SSR (RSC) 深度解析** 的异构高可用架构。
 
 ```mermaid
 flowchart TD
@@ -47,18 +47,22 @@ flowchart TD
     C -->|"独立音乐"| M1["请求 Music Detail API"]
     C -->|"连载合集"| K1["请求 Mix Aweme API"]
     C -->|"放映厅长片"| L1["请求 LVideo Detail API / 解析 PC 端 lvdetail"]
-    C -->|"普通视频/图文"| F0["优先请求移动端 Feed API<br/>免 Argus 门禁 / 免 Cookie / 毫秒级直出"]
+    C -->|"普通视频/图文"| F0["1. 优先请求移动端 Feed API<br/>免 Argus 门禁 / 免 Cookie / 毫秒级直出<br/>(主节点 + 备用 snssdk 节点)"]
     
     F0 --> F1{"Feed 匹配成功?"}
     F1 -->|"成功 (常规视频 >95%)"| E["提取高清流 / 图集 / 字幕 / 音频"]
-    F1 -->|"节点正常但未匹配 (Note/私密)"| D1["回退 Web 详情 API<br/>a_bogus 签名 + 动态指数退避重试"]
+    F1 -->|"未匹配 (Note图文/冷门作品)"| S0["2. 优先请求移动端分享页 SSR<br/>(iesdouyin.com + Mobile UA)<br/>花括号配对提取 _ROUTER_DATA / videoInfoRes"]
+    
+    S0 --> S1{"分享页 SSR 成功?"}
+    S1 -->|"成功 (图文作品 >99%)"| E
+    S1 -->|"未匹配"| D1["3. 回退 Web 详情 API 兜底<br/>a_bogus 签名 + 动态指数退避重试 (最多8次)"]
     
     D1 --> D2{"Web API 响应判定"}
-    D2 -->|"成功 (图文等)"| E
+    D2 -->|"成功"| E
     D2 -->|"明确终态 (私密/已删除/日常权限)"| H["智能短路: 立即终止重试并跳过SSR<br/>透传官方 filter_detail 原因"]
-    D2 -->|"遭遇 403/500/网络抖动"| D3{"重试是否耗尽 (最多8次)?"}
+    D2 -->|"遭遇 403/500/网络抖动"| D3{"重试是否耗尽?"}
     D3 -->|"否"| D1
-    D3 -->|"是"| F["触发 SSR HTML 多级降级"]
+    D3 -->|"是"| F["4. 触发末级 SSR HTML 降级"]
     
     L1 --> F
     M1 -->|"失败"| F
@@ -66,7 +70,7 @@ flowchart TD
     
     F --> G1["解析 __UNIVERSAL_DATA_FOR_REHYDRATION__"]
     G1 -->|"未匹配"| G2["解析 RENDER_DATA URL 编码"]
-    G2 -->|"未匹配"| G3["正则匹配 _ROUTER_DATA / _SSR_DATA"]
+    G2 -->|"未匹配"| G3["花括号配对提取 _ROUTER_DATA / _SSR_DATA"]
     G3 -->|"未匹配"| G4["解析 self.__pace_f.push 流式 SSR"]
     G4 --> E
 ```
@@ -80,16 +84,22 @@ flowchart TD
 * **核心优势**：
   * **绕开 Argus 门禁**：走移动端 App 推荐流协议，不经过 PC Web 端的 `ArgusSecurityPlugin`；
   * **零风控依赖**：无需 `UIFID`、`x-secsdk-web-signature`、`a_bogus`、`msToken` 或任何 Cookie；
-  * **高性能与高可用**：测试中常规视频 403 率为 0%，端到端耗时仅约 200ms；支持主备节点智能故障转移（若主节点正常响应 HTTP 200 但未匹配到目标 ID，则说明该内容不在推荐流中，立即短路切换至 Web 接口，避免重复请求备用节点造成延迟翻倍）。
+  * **高性能与高可用**：测试中常规视频 403 率为 0%，端到端耗时仅约 200ms；支持主备节点智能故障转移（若主节点未收录，自动故障转移至备用 `snssdk` 节点继续尝试）。
 
-### 3.2 Web 详情接口与智能短路退避重试（兜底路径）
+### 3.2 移动端分享页 SSR（图文作品免签名直出通道）
+* **原理与优势**：
+  * **PC 端 CSR 空壳规避**：现代抖音 PC 网页端 (`www.douyin.com/video/{id}`) 属于纯客户端渲染（CSR）空壳页面（72KB 空 HTML，无内嵌数据）；而移动端分享页 `https://www.iesdouyin.com/share/video/{id}` 配合 Android 移动端 User-Agent，服务端依然完整输出包含 `_ROUTER_DATA` 与 `videoInfoRes.item_list` 的 SSR 数据；
+  * **嵌套 JSON 花括号深度栈提取**：通过 `_extract_json_object_after` 实现字符级花括号深度配对与转义字符跳过，彻底解决传统非贪婪正则 `\{.*?\}` 遇到首个 `}` 提前截断导致的 `JSONDecodeError`；
+  * **免风控与毫秒直出**：图文作品在 Mobile Feed 未命中后，**立即通过 1 次分享页 SSR 请求直接取回 18+ 原图与文案**，完全无需触碰 Web API，彻底告别 403 拦截与无效重试。
+
+### 3.3 Web 详情接口与智能短路退避重试（兜底路径）
 * **作品详情接口**：
   ```text
   https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp&aid=6383&channel=channel_pc_web&aweme_id={aweme_id}&msToken={ms_token}&a_bogus={a_bogus}
   ```
-* **适用场景**：图文（Note / 图集，`aweme_type=68`）在抖音内部属于静态流，不走常规推荐 Feed，由系统自动平滑回退至该接口。
+* **适用场景**：作为前两步（Mobile Feed 与分享页 SSR）均未收录时的末级兜底防护网。
 * **退避重试与终态短路双重机制**：
-  * **针对 Argus 概率性 403**：严格保留最大 8 次重试与紧凑退避（单次上限 0.8s），确保概率覆盖达到 99.6% 以上，保障图文等合法作品的高可用率；
+  * **针对 Argus 概率性 403**：严格保留最大 8 次重试与紧凑退避（单次上限 0.8s），为特殊受限作品提供最终兜底保障；
   * **针对不可重试终端状态（短路熔断）**：当 Web API 明确返回已删除、仅自己可见或朋友日常权限等终端状态（`status_code == 0` 且带有 `filter_detail`）时，`_is_terminal_failure` 立即生效，**在第 1 次响应后立即终止重试**，并跳过无意义的 SSR HTML 兜底，将失效链接的整体耗时从 11~14 秒压缩至亚秒/秒级。
 * **独立音乐详情接口**：
   ```text
@@ -108,7 +118,7 @@ flowchart TD
   * `Referer`：根据内容形态动态区分（视频使用 `/video/{aweme_id}`，图文使用 `/note/{aweme_id}`）。
   * `Cookie`：携带 `ttwid` 及自定义 `DOUYIN_COOKIE`。
 
-### 3.3 动态 TTWID 获取机制
+### 3.4 动态 TTWID 获取机制
 抖音 Web 端详情接口要求必须携带有效的 `ttwid`。我们在 [DouyinParser](file:///Users/leo/Projects/media-parser/src/parsers/douyin_parser.py) 中实现了自动注册与类级别内存缓存：
 ```python
 url = "https://ttwid.bytedance.com/ttwid/union/register/"
@@ -123,7 +133,7 @@ resp = session.post(url, json=data)
 ttwid = resp.cookies.get('ttwid')
 ```
 
-### 3.3 签名计算 (a_bogus)
+### 3.5 签名计算 (a_bogus)
 通过 `py_mini_racer` 在 Google V8 引擎中执行提取的前端混淆脚本，计算 `a_bogus` 防篡改签名：
 ```python
 from utils.signer.bytedance.bogus_signer import BogusSigner
@@ -132,11 +142,11 @@ signer = BogusSigner()
 abogus = signer.get_abogus(play_url, signer.user_agent)
 ```
 
-### 3.4 SSR HTML 免签名容灾降级与流式 SSR
+### 3.6 SSR HTML 免签名容灾降级与流式 SSR
 当 API 遭遇风控（403/500/空数据）或面对放映厅长视频时，解析器自动回退到 SSR 页面数据抽取，覆盖 4 种主流结构：
 1. `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">`（现代 PC 网页端主流）；
 2. `<script id="RENDER_DATA">`（经典版 URL 编码结构）；
-3. 正则表达式捕获 `window._ROUTER_DATA` / `window._SSR_DATA` / `window.__INIT_PROPS__`；
+3. 花括号栈配对提取 `window._ROUTER_DATA` / `window._SSR_DATA` / `window.__INIT_PROPS__`；
 4. **React Server Components 流式 SSR (`self.__pace_f.push`)**：解析 Next.js / 字节流式传输切片，提取包含 `defaultAwemeInfo`、`lvideoBrief`、`videoModel.dynamicVideo` 的超高清流。
 
 ---
@@ -176,23 +186,16 @@ abogus = signer.get_abogus(play_url, signer.user_agent)
 2. **H.265 在 Web 端播放黑屏**：
    * *现象*：直接取 `bit_rate[0]` 可能是 H.265 编码，在 Chrome / Safari 播放时有声音无画面。
    * *解法*：代码中严格做 `is_h265 == 0` / `codec_type == 'h264'` 过滤，优先选择 H.264 最高码率流。
-3. **放映厅长视频遭遇 TTGCaptcha 滑块拦截**：
-   * *现象*：匿名请求放映厅链接时返回 6KB `<title>验证码中间页</title>`，官方接口返回 `{"status_code": 4, "status_msg": "啊哦，服务器打瞌睡了，再试一次吧～"}`。
-   * *原因*：字节跳动对影视长片启用了严格的反爬滑块验证。
-   * *解法*：配置环境变量 `DOUYIN_COOKIE`。**注意：无需暴露任何包含账号隐私的 `sessionid`**，经消融实验测试，**仅需提供以下两个非登录的风控通行证字段**即可 100% 成功解析：
-     ```text
-     DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
-     ```
-     * `s_v_web_id`：字节跳动安全 SDK 人机校验通过凭证（Security Verify ID）；
-     * `__ac_nonce`：安全网关挑战随机数（Anti-Crawler Nonce）。
+3. **PC 端 CSR 空壳与移动端分享页 SSR 解析**：
+   * *现象*：PC 端 `/video/{id}` 在无 Cookie / 匿名下返回纯客户端渲染空壳（72KB HTML，无任何 SSR 数据）；若用非贪婪正则 `_ROUTER_DATA\s*=\s*(\{.*?\});` 提取深层嵌套 JSON 会因提前截断而 100% 失败。
+   * *解法*：统一请求移动端分享页 `https://www.iesdouyin.com/share/video/{id}` 并携带移动 UA，通过 `_extract_json_object_after` 花括号深度栈配对提取完整 `_ROUTER_DATA`，并在 `_find_aweme_detail` 中适配 `videoInfoRes.item_list`。
+4. **Argus 网关 403 拦截（`Blocked by ArgusSecurityPlugin Uifid Not Found`）与免签秒级直出**：
+   * *现象与机理*：PC Web 端 `/aweme/v1/web/aweme/detail/` 位于字节跳动 Argus 风控网关后，机房 IDC IP 匿名访问通常直接 403 拦截。
+   * *终极根治解法（双免签直出架构）*：
+     1. **常规视频**：走 **移动端 Feed 核心通道**（`api5-normal-c-hl.amemv.com`），免 Argus 门禁、免 Cookie、免签名，~200ms 直出；
+     2. **图文作品**：走 **移动端分享页 SSR 通道**，免 a_bogus 签名与 Web 风控，直接从 HTML 提取原图与文案，~200ms 直出；
+     3. **兜底保障**：Web a_bogus API 保留作为第 3 级兜底，配合终端状态即时短路熔断机制。
 
-4. **Argus 网关 403 拦截（`Blocked by ArgusSecurityPlugin Uifid Not Found`）与异构根治**：
-   * *现象与机理*：PC Web 端 `/aweme/v1/web/aweme/detail/` 位于字节跳动 Argus 风控网关后。若无浏览器环境前端安全 SDK 产生的真实 `UIFID`，网关对未授权匿名请求采取动态概率放行策略（单次 403 拦截率高达 ~50%）。单纯在 URL 拼接 `&uifid=xxx` 或使用纯 Python 计算 `x-secsdk-web-signature` 均无法通过网关的设备凭证校验（实测首次 403 发生率无实质改善）。
-   * *旧版暴力重试的弊端*：若将全部流量压在 Web 接口上，必须依赖 8 次重试硬撞概率，导致普通视频产生大量无效请求并触发长达 10~20 多秒的退避等待，且极易导致 IP 被风控拉黑。
-   * *终极根治解法（异构双通道架构）*：
-     1. **移动端 Feed 主路径（>95% 场景）**：常规视频直接走移动端 Feed 接口（`api5-normal-c-hl.amemv.com`），该接口不走 Argus 网关门禁，无需 `UIFID`、`a_bogus` 或 Cookie，测试中 403 率为 0%，端到端约 200ms 毫秒级直出；
-     2. **Web API 紧凑重试兜底（~5% 场景）**：图文作品（Note / 图集，`aweme_type=68`）不走常规视频 Feed，程序自动回退至 Web 接口，保留 8 次重试保障最终成功率，并将单次退避上限压缩至 0.8s，即使多轮重试也可在 2.5s~4s 内快速通过，杜绝长时假死；
-     3. **实测表现**：在 30 链接 × 5 轮（共 150 次）大样本回归中，最终成功率由最初的 82% 提升至 100%（150/150），常规视频请求 403 发生次数为 0。
 
 5. **私密/日常/已删除链接的不可重试终端状态与智能短路熔断**：
    * *现象与机理*：用户传入“抖音日常（24小时可见）”、“私密（仅自己可见）”或“已被作者删除”的作品链接时，官方 Web 详情接口返回 HTTP 200，但带有 `filter_detail`（如 `status_self_see`、`status_deleted`、`status_part_see`）。此类作品本身已被平台限制访问，无论重试多少次都不会有数据。

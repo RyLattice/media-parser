@@ -739,14 +739,35 @@ class DouyinParserTest(unittest.TestCase):
         mock_resp.json.return_value = terminal_payload
 
         with patch.object(DouyinParser, "_request_mobile_feed", return_value=None):
-            with patch.object(DouyinParser, "fetch_html_content") as mock_ssr:
-                with patch("requests.Session.get", return_value=mock_resp) as mock_get:
-                    parser = DouyinParser(f"https://www.douyin.com/video/{aweme_id}")
-                    # 应该在第 1 次拿到 terminal 响应后立即退出，不能重试 8 次
-                    self.assertEqual(mock_get.call_count, 1)
-                    # 应该跳过 SSR 兜底
-                    mock_ssr.assert_not_called()
-                    self.assertIsNone(parser.data)
+            with patch.object(DouyinParser, "_try_share_ssr_detail", return_value=None):
+                with patch.object(DouyinParser, "fetch_html_content") as mock_ssr:
+                    with patch("requests.Session.get", return_value=mock_resp) as mock_get:
+                        parser = DouyinParser(f"https://www.douyin.com/video/{aweme_id}")
+                        # 应该在第 1 次拿到 terminal 响应后立即退出，不能重试 8 次
+                        self.assertEqual(mock_get.call_count, 1)
+                        # 应该跳过末级 SSR 兜底
+                        mock_ssr.assert_not_called()
+                        self.assertIsNone(parser.data)
+
+    def test_share_ssr_precedence_over_web_api(self):
+        aweme_id = "7675236180098600202"
+        ssr_payload = {
+            "aweme_detail": {
+                "aweme_id": aweme_id,
+                "desc": "分享页 SSR 优先解析图文",
+                "images": [{"url_list": ["https://p3.douyinpic.com/img1.jpg"]}]
+            }
+        }
+        with patch.object(DouyinParser, "_request_mobile_feed", return_value=None):
+            with patch.object(DouyinParser, "_try_share_ssr_detail", return_value=ssr_payload) as mock_share_ssr:
+                with patch.object(DouyinParser, "_request_api_with_retry") as mock_web_api:
+                    parser = DouyinParser(f"https://www.iesdouyin.com/share/video/{aweme_id}")
+                    self.assertIsNotNone(parser.data)
+                    self.assertEqual(parser.data["aweme_detail"]["desc"], "分享页 SSR 优先解析图文")
+                    mock_share_ssr.assert_called_once()
+                    # 分享页 SSR 成功时无需再调用 Web a_bogus API，避开 403
+                    mock_web_api.assert_not_called()
+
     def test_parses_playlet_detail_series(self):
         playlet_payload = {
             "status_code": 0,

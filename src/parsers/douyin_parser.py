@@ -103,20 +103,35 @@ class DouyinParser(BaseParser):
         self.data = self.fetch_html_data()
 
     def fetch_html_content(self):
-        """优先请求 PC 端网页以获取完整的 SSR 数据"""
+        """
+        拉取可能含 SSR 数据的页面。
+
+        注意：PC 端 /video/{id} 现已是纯 CSR 空壳（无 _ROUTER_DATA / aweme_detail），
+        分享页 iesdouyin.com/share/video/{id} 仍嵌入 videoInfoRes，必须优先使用。
+        """
         target_url = self.real_url
+        use_mobile_ua = False
         if self.is_lvdetail and getattr(self, 'ep_id', None):
             target_url = f"https://www.douyin.com/lvdetail/{self.ep_id}"
         elif self.is_lvdetail and getattr(self, 'album_id', None):
             target_url = f"https://www.douyin.com/share/playlet/detail/{self.album_id}"
         elif self.is_collection and getattr(self, 'aweme_id', None):
             target_url = f"https://www.douyin.com/collection/{self.aweme_id}"
-        elif getattr(self, 'aweme_id', None) and 'iesdouyin.com' in (self.real_url or ''):
-            target_url = f"https://www.douyin.com/video/{self.aweme_id}"
+        elif getattr(self, 'aweme_id', None) and not self.is_music:
+            # 勿改写为 www.douyin.com/video（空壳）；统一走分享页拿 SSR
+            target_url = f"https://www.iesdouyin.com/share/video/{self.aweme_id}"
+            use_mobile_ua = True
 
         headers = copy.deepcopy(self.headers)
         ttwid = self._get_ttwid()
         headers['Cookie'] = self._get_cookie_header(ttwid)
+        if use_mobile_ua:
+            # 与站点旧 VideoService 一致：分享页对移动 UA 更友好
+            headers['User-Agent'] = (
+                'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36'
+            )
+            headers['Referer'] = 'https://www.douyin.com/?is_from_mobile_home=1&recommend=1'
         try:
             resp = self.session.get(target_url, headers=headers, timeout=5, verify=False)
             if resp.status_code == 200:
@@ -286,7 +301,7 @@ class DouyinParser(BaseParser):
 
         该接口不经过 PC Web 端的 ArgusSecurityPlugin 门禁，无需 uifid、
         a_bogus 签名与 Cookie，响应极快且对常规视频保持高可用（测试中 0 次 403）。
-        如果主节点异常或超时，自动尝试备用 snssdk 节点。
+        如果主节点异常、超时或未命中目标作品，自动尝试备用 snssdk 节点。
         """
         if not aweme_id or not ENABLE_MOBILE_FEED:
             return None
@@ -306,16 +321,36 @@ class DouyinParser(BaseParser):
                 if resp.status_code == 200 and resp.text:
                     data = resp.json()
                     aweme_list = data.get('aweme_list') or []
-                    matched = next((item for item in aweme_list if str(item.get('aweme_id')) == str(aweme_id)), None)
+                    matched = next(
+                        (item for item in aweme_list
+                         if str(item.get('aweme_id') or item.get('id') or '') == str(aweme_id)),
+                        None,
+                    )
                     if matched:
                         logger.info(f"Successfully fetched Douyin video detail via mobile feed API: {aweme_id}")
                         return {"aweme_detail": matched}
-                    # 节点响应正常(200)但未匹配到作品(如 Note 图文或私密作品)，无需再去备用节点重复请求
-                    break
+                    # 未命中则继续试备用节点（不同节点对同一 aweme_id 的收录不一致）
             except Exception as e:
                 logger.debug(f"Mobile feed API failed on {endpoint}: {e}")
                 continue
 
+        return None
+
+    def _try_share_ssr_detail(self):
+        """
+        从 iesdouyin 分享页提取 aweme_detail（免 a_bogus，避开 Argus 403）。
+        在 Web detail API 重试之前调用，避免白白耗尽 8 次退避。
+        """
+        if not self.aweme_id or self.is_music or self.is_collection or self.is_lvdetail:
+            return None
+        if not self.html_content:
+            self.fetch_html_content()
+        if not self.html_content:
+            return None
+        ssr_data = self._parse_ssr_data(self.html_content)
+        if ssr_data and ssr_data.get('aweme_detail'):
+            logger.info(f"Successfully extracted Douyin detail via share-page SSR: {self.aweme_id}")
+            return ssr_data
         return None
 
     @staticmethod
@@ -387,14 +422,67 @@ class DouyinParser(BaseParser):
         return None
 
     @staticmethod
+    def _extract_json_object_after(marker, text):
+        """
+        从 marker 后截取完整 JSON 对象（按花括号配对），避免非贪婪正则在嵌套 JSON 上提前截断。
+        用于 window._ROUTER_DATA = {...} 等分享页内嵌数据。
+        """
+        if not text or not marker:
+            return None
+        idx = text.find(marker)
+        if idx < 0:
+            return None
+        start = text.find('{', idx + len(marker))
+        if start < 0:
+            return None
+        depth = 0
+        in_str = False
+        escape = False
+        for i in range(start, len(text)):
+            ch = text[i]
+            if in_str:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        return None
+        return None
+
+    @staticmethod
     def _find_aweme_detail(data, target_id=None):
         """
-        递归查找嵌套字典或列表中的 aweme_detail 或 itemStruct 节点。
+        递归查找嵌套字典或列表中的 aweme_detail / itemStruct / videoInfoRes.item_list 节点。
         """
         if not data:
             return None
 
         if isinstance(data, dict):
+            # 0. 分享页经典结构：videoInfoRes.item_list[0]
+            video_info_res = data.get('videoInfoRes')
+            if isinstance(video_info_res, dict):
+                item_list = video_info_res.get('item_list') or video_info_res.get('itemList') or []
+                if isinstance(item_list, list):
+                    for item in item_list:
+                        if not isinstance(item, dict):
+                            continue
+                        if target_id is None or str(item.get('aweme_id') or item.get('id') or '') == str(target_id):
+                            return item
+                    if item_list and isinstance(item_list[0], dict) and target_id is None:
+                        return item_list[0]
+
             # 1. 直接包含标准 aweme_detail 键
             if "aweme_detail" in data and isinstance(data["aweme_detail"], dict):
                 detail = data["aweme_detail"]
@@ -488,33 +576,29 @@ class DouyinParser(BaseParser):
             except Exception as e:
                 logger.debug(f"Failed to parse RENDER_DATA: {e}")
 
-        # 策略 3: 正则匹配 _ROUTER_DATA / _SSR_DATA / __INIT_PROPS__
-        patterns = [
-            re.compile(r'_ROUTER_DATA\s*=\s*(\{.*?\});', re.DOTALL),
-            re.compile(r'window\._SSR_DATA\s*=\s*(\{.*?\});', re.DOTALL),
-            re.compile(r'window\.__INIT_PROPS__\s*=\s*(\{.*?\});', re.DOTALL),
-        ]
-        for pattern in patterns:
-            match = pattern.search(html_content)
-            if match:
-                try:
-                    raw_json = json.loads(match.group(1).strip())
-                    if self.is_music:
-                        music_info = self._find_music_info(raw_json, self.aweme_id)
-                        if music_info:
-                            logger.info("Successfully extracted Douyin music detail from regex SSR script")
-                            return {"music_info": music_info}
-                    if self.is_lvdetail:
-                        lvideo_info = self._find_lvideo_detail(raw_json, self.aweme_id)
-                        if lvideo_info:
-                            logger.info("Successfully extracted Douyin lvideo detail from regex SSR script")
-                            return lvideo_info
-                    detail = self._find_aweme_detail(raw_json, self.aweme_id)
-                    if detail:
-                        logger.info("Successfully extracted Douyin detail from regex SSR script")
-                        return {"aweme_detail": detail}
-                except Exception as e:
-                    logger.debug(f"Failed to parse regex SSR data: {e}")
+        # 策略 3: 正则 / 花括号配对提取 _ROUTER_DATA / _SSR_DATA / __INIT_PROPS__
+        # 分享页 _ROUTER_DATA 为深层嵌套 JSON，非贪婪 \{.*?\} 会在首个 } 处截断，必须配对提取
+        for marker in ('_ROUTER_DATA', '_SSR_DATA', '__INIT_PROPS__'):
+            raw_json = self._extract_json_object_after(marker, html_content)
+            if not raw_json:
+                continue
+            try:
+                if self.is_music:
+                    music_info = self._find_music_info(raw_json, self.aweme_id)
+                    if music_info:
+                        logger.info(f"Successfully extracted Douyin music detail from {marker}")
+                        return {"music_info": music_info}
+                if self.is_lvdetail:
+                    lvideo_info = self._find_lvideo_detail(raw_json, self.aweme_id)
+                    if lvideo_info:
+                        logger.info(f"Successfully extracted Douyin lvideo detail from {marker}")
+                        return lvideo_info
+                detail = self._find_aweme_detail(raw_json, self.aweme_id)
+                if detail:
+                    logger.info(f"Successfully extracted Douyin detail from {marker}")
+                    return {"aweme_detail": detail}
+            except Exception as e:
+                logger.debug(f"Failed to parse {marker}: {e}")
 
         # 策略 4: self.__pace_f.push (React Server Components / Next.js 流式 SSR 数据)
         pace_matches = re.findall(r'self\.__pace_f\.push\(\[1,\s*\"(.*?)\"\]\)', html_content)
@@ -636,7 +720,12 @@ class DouyinParser(BaseParser):
         if mobile_data:
             return mobile_data
 
-        # 2. 兜底路径：当为图文作品（Note）或移动端 Feed 未收录时，回退到 Web API 并进行退避重试
+        # 2. 分享页 SSR（免 a_bogus）：mobile miss 时先走这里，避免先烧 8 次 Argus 403
+        share_ssr = self._try_share_ssr_detail()
+        if share_ssr:
+            return share_ssr
+
+        # 3. 兜底路径：当为图文作品（Note）或分享页未收录时，回退到 Web API 并进行退避重试
         page_type = "note" if (self.real_url and ('/note/' in self.real_url or '/slides/' in self.real_url)) else "video"
         detail_api = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp"
                       f"&aid=6383&channel=channel_pc_web&aweme_id={self.aweme_id}")
@@ -653,8 +742,8 @@ class DouyinParser(BaseParser):
             logger.info(f"作品确认处于明确的不可用终端状态，跳过 SSR HTML 兜底解析: {self.real_url}")
             return None
 
-        # 3. 多级容灾降级：当 API 失败时，从页面 SSR HTML 提取数据
-        logger.info(f"抖音 a_bogus API 未返回有效详情，触发 SSR HTML 兜底解析: {self.real_url}")
+        # 4. 末级容灾：Web API 失败后若此前 SSR 未命中，再试一次（html 可能已缓存）
+        logger.info(f"抖音 a_bogus API 未返回有效详情，再次尝试 SSR HTML 兜底解析: {self.real_url}")
         if not self.html_content:
             self.fetch_html_content()
 
@@ -1049,7 +1138,10 @@ class DouyinParser(BaseParser):
     def get_description(self):
         """返回抖音原始作品文案，不用标题字段回填。"""
         try:
-            return (self.data.get('aweme_detail') or {}).get('desc') or None
+            data_dict = self.data
+            if not data_dict:
+                return None
+            return (data_dict.get('aweme_detail') or {}).get('desc') or None
         except (AttributeError, TypeError) as e:
             logger.warning(f"Failed to parse Douyin description: {e}")
             return None
