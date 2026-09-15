@@ -140,6 +140,9 @@ def _execute_parse(text, access):
             if platform in ('视频号', '微信视频号'):
                 response, status = make_response(400, '解析失败：该链接需要配置腾讯元宝 YUANBAO_COOKIE 凭证后重试', None, False, 'WECHAT_CHANNELS_COOKIE_REQUIRED'), 400
                 return response, status
+            if platform == '快手' and getattr(parser, 'cookie_required', False):
+                response, status = make_response(400, '解析失败：该链接触发快手安全校验，请在配置中提供有效快手 Cookie 后重试', None, False, 'KUAISHOU_COOKIE_REQUIRED'), 400
+                return response, status
             is_no_media = getattr(parser, 'no_media_in_content', False)
             if is_no_media is True or (
                 type(is_no_media).__name__ not in ('Mock', 'MagicMock')

@@ -97,25 +97,23 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 
 ## 🚀 部署指南
 
-### Cookie 配置（按需可选，开箱即用）
+### Cookie 与环境变量配置（按需可选，开箱即用）
 
-绝大多数平台**无需任何 Cookie 即可直接解析**。如需增强特定平台（如小红书防风控、豆包无水印视频等），直接复制环境变量文件并在 `.env` 中按需填写即可：
+本项目 95%+ 的平台**完全无需任何 Cookie 即可直接匿名解析**。如需增强特定平台（如小红书/快手防风控、视频号媒体流、豆包无水印视频等），直接复制环境变量示例文件并在 `.env` 中按需填写即可：
 
 ```bash
 cp .env.example .env
 ```
 
-在本地 `.env` 中按需填入对应配置：
-1. **豆包无水印视频 (`DOUBAO_COOKIE`)**：
-   * 用于解密获取 1080P 原始纯净无水印视频。推荐精简 Cookie 配置 `sessionid_ss=xxx`。未配置时仍可解析公开无水印图片与带水印的视频。
-2. **视频号无水印视频 (`YUANBAO_COOKIE`)**：
-   * 通过腾讯元宝接口提取视频号原始流、高清图集及背景原声。推荐精简 Cookie 配置 `hy_user=xxx; hy_token=xxx`。未配置时仅可获取公开基础信息（标题/作者/封面）。
-3. **小红书防风控解析 (`XHS_COOKIE`)**：
-   * 用于解决小红书网页端针对服务器机房 IP 匿名抓取可能遭遇的 302 登录拦截。推荐精简 Cookie 配置 `a1=xxx; webId=xxx; web_session=xxx`。日常默认无需 Cookie 即可直接匿名解析。
-4. **抖音放映厅长视频 (`DOUYIN_COOKIE`)**：
-   * 仅在解析放映厅/影视长片/演唱会大片等强风控内容时才需要配置。推荐精简 Cookie 配置 `s_v_web_id=xxx; __ac_nonce=xxx`，该字段仅为字节安全 SDK 的人机风控通行证。日常 99%+ 的普通短视频、图文笔记、LivePhoto、原声音乐等完全免 Cookie 匿名解析。
-5. **拼多多视频 (`PINDUODUO_COOKIE`)**：
-   * 用于解析多多视频（短视频）原画。登录 `mobile.yangkeduo.com`（拼多多移动端）后获取，推荐精简 Cookie 配置 `PDDAccessToken=xxx`。未配置时仍可免 Cookie 解析商品图集与评价秀素材。
+| 平台 | 环境变量 | 作用说明 |
+| :--- | :--- | :--- |
+| **视频号** | `YUANBAO_COOKIE` | 提取视频号无水印视频流与图集（依赖腾讯元宝凭据） |
+| **小红书** | `XHS_COOKIE` | 解决服务器机房 IP 遭遇的 302 登录拦截 |
+| **快手** | `KUAISHOU_COOKIE` | 应对快手偶发的反爬风控校验 |
+| **拼多多** | `PINDUODUO_COOKIE` | 提取多多视频短视频原画流 |
+| **豆包 AI** | `DOUBAO_COOKIE` | 提取 1080P 原始纯净无水印视频 |
+
+> 📖 **各平台详细抓包提取教程、精简字段推荐与风控排查，请查阅 👉 [全平台 Cookie 与凭据配置指南](docs/cookie-config.md)**。
 
 ### Docker 部署（推荐）
 
@@ -251,6 +249,7 @@ python3 tests/manual_verify_parsers.py --platform "小云雀AI"
 本项目提供了详尽的技术架构与全平台逆向分析手册，详细内容请查阅 **[`docs/`](docs/)** 目录：
 
 * 🏗️ **[系统架构与生命周期](docs/architecture.md)**：分层设计、302 追踪与 `ParserFactory` 动态发现机制。
+* 🍪 **[全平台 Cookie 与凭据配置](docs/cookie-config.md)**：各平台凭据作用、精简字段推荐、F12 抓包获取与防风控排查。
 * 🔍 **[通用逆向方法论](docs/reverse-guide.md)**：SSR 数据提取、H5 接口伪装、JS 签名沙箱及抓包 SOP。
 * 🧪 **[测试体系与回归验证](docs/testing.md)**：Pytest 单元测试、Mock 与线上真实样例回归。
 * 📚 **[平台逆向指南索引](docs/index.md)**：包含抖音、快手、小红书、B站等全部 50 个平台的技术文档。

@@ -9,6 +9,7 @@
 ## 📚 文档导航
 
 * 🔌 **[RESTful API 与错误码规范 (API Specification)](api.md)**：查阅统一响应结构、鉴权方式及全局错误码定义表。
+* 🍪 **[全平台 Cookie 与凭据配置 (Cookie Configuration)](cookie-config.md)**：各平台凭证作用、精简字段推荐、F12 获取方法与防风控排查。
 * 🏗️ **[系统架构与生命周期 (Architecture)](architecture.md)**：了解请求处理链路、302 跳转跟踪与 ParserFactory 自动发现机制。
 * 🔍 **[通用逆向方法论 (Reverse Engineering Guide)](reverse-guide.md)**：掌握 SSR 数据提取、H5 接口伪装、JS 签名沙箱及抓包 SOP。
 * 🧪 **[测试与回归验证 (Testing Guide)](testing.md)**：学习 Pytest 单元测试、Mock 构造与真实样本（Live Samples）测试。

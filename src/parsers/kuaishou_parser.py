@@ -17,22 +17,23 @@ class KuaishouParser(BaseParser):
     def __init__(self, real_url):
         super().__init__(real_url)
 
-        default_cookie = (
-            'kpf=PC_WEB; clientid=3; did=web_bfbcdb2f5b3dc663a745deabafcf61e6; kwpsecproductname=kuaishou-vision; '
-            'didv=1773330035000; kwpsecproductname=kuaishou-vision; userId=446442483; kuaishou.server.webday7_st=ChprdWFpc2hvdS5zZXJ2ZXIud2ViZGF5Ny5zdBKwAeuBbGjVcz39sj4G7d7P54r9C1etC_QftYb2I1XMg01WSbw9NefL7E6EmwkYxHf70B9BM3Oyk20kFv1Y0xnRcfHtGNHYUHkmKguP6cvFeACofr2zPAZYRchRkndIBk5qExOlkr4FSoGpY-WqXeibapHNEbfZTLZl_QkQA4aGWotSZpBMv6wR3RxZWiMv60xc-CIndGICJbbRAaRGZNxz7QBj2Mr-SeU2o0bVi7esnD1AGhKquV16S9dezebl5ZuYo_R_JKgiIAidQF8n526Yos_GTgm3KrGknnEbkK-NMiNvTw3YBehZKAUwAQ; kuaishou.server.webday7_ph=f3720606882f1d7a76ab1ab52a489c4d44a1; bUserId=1000583835422; ktrace-context=1|MS44Nzg0NzI0NTc4Nzk2ODY5Ljg3MTE4OTQ4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTI=|MS44Nzg0NzI0NTc4Nzk2ODY5LjUxNTU3MjM4LjE3NzM1NzExNTEyMjQuNDQ0OTc1MTM=|0|webservice-user-growth-node|webservice|true|src-Js; kwssectoken=BIjmefxxiTpXOdz9/RQ6Gl7cR5/0J7xaPzJ18udJgBSLTrJy4O7LhrYtbeeHGW+AOJrI6P8LQnioDWSuuQxV8Q==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d; kpn=KUAISHOU_VISION; kwfv1=PnGU+9+Y8008S+nH0U+0mjPf8fP08f+98f+nLlwnrIP9P9G98YPf8jPBQSweS0+nr9G0mD8B+fP/L98/qlPe4f8eDI8f8jwBGh8BPAPfLEGALhGf+f+AYj+e4jPfLl+AY0G/cI+/Q0G0DEPfc98/mjw/pSPBbjGArh8erl+ezfG/HlP0zf+0b0+n+DGnpj+0HI+9Qj+0p0PeDF+ADIPeL7+W==; kwssectoken=IMLS/eg005i6IUbIoIB/7WByh8ciKMPUXULQ3a5/m3dK5D9ez8He/oMP2QLhil52v7Bk3O0CO2g6t5R/5XjSCw==; kwscode=75d440673de879734b8700f363119968b4fabb4eb0369b1607e206d8e8c1ac9d'
-        )
         custom_cookie = get_platform_cookie("kuaishou")
+        self.custom_cookie = custom_cookie or ""
 
         self.headers = {
             "content-type": "application/json; charset=UTF-8",
             'User-Agent': random.choice(USER_AGENT_PC),
             'referer': 'https://www.kuaishou.com/',
-            'cookie': custom_cookie if custom_cookie else default_cookie,
         }
+        if self.custom_cookie:
+            self.headers['cookie'] = self.custom_cookie
+
         self.video_id = UrlParser.get_video_id(self.real_url)
         self.page_type = "UNKNOWN"
         self.structured_data = {}
         self.client = {}
+        self.cookie_required = False
+        self.terminal_error = None
 
         # 快手不同公开路由的稳定性差异较大，命中风控时自动切换备用路由重试。
         self._load_page_with_fallbacks()
@@ -47,18 +48,19 @@ class KuaishouParser(BaseParser):
             return False
         try:
             payload = json.loads(html_content)
+            result = payload.get("result") or payload.get("data", {}).get("result")
+            if result in (2, 400002) or payload.get("bizName") == "ANTICRAWL_DEFAULT":
+                return True
         except (TypeError, json.JSONDecodeError):
             return False
-        return payload.get("result") == 2
+        return False
 
     def _candidate_urls(self):
-        if not self.video_id:
-            return [self.real_url]
-
         candidates = [self.real_url]
-
-        if not self._is_fw_photo_url(self.real_url):
-            candidates.append(f"https://v.m.chenzhongtech.com/fw/photo/{self.video_id}")
+        if self.video_id:
+            if not self._is_fw_photo_url(self.real_url):
+                candidates.append(f"https://v.m.chenzhongtech.com/fw/photo/{self.video_id}")
+            candidates.append(f"https://www.kuaishou.com/short-video/{self.video_id}")
 
         deduped = []
         for url in candidates:
@@ -74,11 +76,14 @@ class KuaishouParser(BaseParser):
         return path.startswith("/fw/photo/")
 
     def _build_mobile_headers(self):
-        return {
+        headers = {
             "User-Agent": random.choice(USER_AGENT_M),
             "referer": "https://v.m.chenzhongtech.com/",
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
+        if self.custom_cookie:
+            headers["cookie"] = self.custom_cookie
+        return headers
 
     def _fetch_html_with_headers(self, url, headers):
         try:
@@ -133,6 +138,7 @@ class KuaishouParser(BaseParser):
         self.html_content = self._fetch_html_with_headers(candidate_url, headers)
         if self._is_blocked_payload(self.html_content):
             logger.warning(f"Kuaishou blocked route {candidate_url}, trying fallback")
+            self.cookie_required = True
             return False
 
         page_type, structured_data = self._identify_and_parse_data()
@@ -146,13 +152,87 @@ class KuaishouParser(BaseParser):
         self.structured_data = structured_data
         return True
 
+    def _try_graphql_api(self, video_id):
+        if not video_id:
+            return False
+        graphql_url = "https://www.kuaishou.com/graphql"
+        headers = dict(self.headers)
+        headers["Referer"] = f"https://www.kuaishou.com/short-video/{video_id}"
+        payload = {
+            "operationName": "visionVideoDetail",
+            "variables": {"photoId": video_id, "page": "detail"},
+            "query": """query visionVideoDetail($photoId: String, $type: String, $page: String, $webPageArea: String) {
+  visionVideoDetail(photoId: $photoId, type: $type, page: $page, webPageArea: $webPageArea) {
+    status
+    type
+    author {
+      id
+      name
+      headerUrl
+    }
+    photo {
+      id
+      caption
+      coverUrl
+      photoUrl
+      mainMvUrls {
+        url
+      }
+      manifest {
+        adaptationSet {
+          representation {
+            url
+            backupUrl
+          }
+        }
+      }
+      atlas {
+        cdn
+        cdnList
+        list
+      }
+    }
+  }
+}"""
+        }
+        try:
+            resp = requests.post(graphql_url, json=payload, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                if self._is_blocked_payload(resp.text):
+                    self.cookie_required = True
+                    return False
+                data = resp.json()
+                detail = data.get("data", {}).get("visionVideoDetail")
+                if isinstance(detail, dict) and detail.get("photo"):
+                    self.page_type = "GRAPHQL"
+                    self.structured_data = detail
+                    return True
+        except Exception as e:
+            logger.debug(f"Kuaishou GraphQL request failed: {e}")
+        return False
+
     def _load_page_with_fallbacks(self):
+        blocked = False
         for candidate_url in self._candidate_urls():
             # 快手移动端页面优先返回完整的 INIT_STATE；桌面端页面仅作为兼容兜底。
             if self._try_parse_candidate(candidate_url, self._build_mobile_headers()):
                 return
+            if self.cookie_required:
+                blocked = True
             if self._try_parse_candidate(candidate_url, self.headers):
                 return
+            if self.cookie_required:
+                blocked = True
+
+        if self.video_id and self._try_graphql_api(self.video_id):
+            return
+
+        if blocked or self.cookie_required:
+            self.cookie_required = True
+            self.terminal_error = {
+                "detail_msg": "解析失败：该链接触发快手安全校验，请在配置中提供有效快手 Cookie 后重试",
+                "error_code": "KUAISHOU_COOKIE_REQUIRED",
+            }
 
         self.page_type = "UNKNOWN"
         self.structured_data = {}
@@ -325,6 +405,25 @@ class KuaishouParser(BaseParser):
 
     def get_real_video_url(self):
         try:
+            if self.page_type == "GRAPHQL":
+                photo = self.structured_data.get("photo", {})
+                video_url = (
+                    self._first_url(photo.get("mainMvUrls"))
+                    or self._normalize_url(photo.get("photoUrl"))
+                )
+                if video_url:
+                    return video_url
+                manifest = photo.get("manifest", {})
+                for adaptation_set in manifest.get("adaptationSet", []):
+                    for representation in adaptation_set.get("representation", []):
+                        backup_urls = representation.get("backupUrl") or []
+                        if backup_urls:
+                            return self._first_url(backup_urls)
+                        rep_url = representation.get("url")
+                        if rep_url:
+                            return self._normalize_url(rep_url)
+                return None
+
             if self.page_type == "VIDEO":
                 # 优先从标准表示层获取
                 video_url = self.client.get('VisionVideoSetRepresentation:1', {}).get('url')
@@ -368,6 +467,8 @@ class KuaishouParser(BaseParser):
 
     def get_description(self):
         try:
+            if self.page_type == "GRAPHQL":
+                return self.structured_data.get("photo", {}).get("caption") or None
             photo_key = f"VisionVideoDetailPhoto:{self.video_id}"
             if self.page_type == "VIDEO":
                 caption = self.client.get(photo_key, {}).get('caption', '')
@@ -382,6 +483,12 @@ class KuaishouParser(BaseParser):
 
     def get_cover_photo_url(self):
         try:
+            if self.page_type == "GRAPHQL":
+                cover = self.structured_data.get("photo", {}).get("coverUrl")
+                if cover:
+                    return self._normalize_url(cover)
+                return ""
+
             photo_key = f"VisionVideoDetailPhoto:{self.video_id}"
             if self.page_type == "VIDEO":
                 cover_url = self.client.get(photo_key, {}).get('coverUrl', '')
@@ -407,6 +514,16 @@ class KuaishouParser(BaseParser):
         核心修正：通过引用 ID 在扁平化的状态机中进行二次索引
         """
         try:
+            if self.page_type == "GRAPHQL":
+                author = self.structured_data.get("author", {})
+                if author:
+                    return {
+                        "nickname": author.get("name"),
+                        "unique_id": author.get("id"),
+                        "avatar": author.get("headerUrl")
+                    }
+                return None
+
             if self.page_type == "VIDEO":
                 # 1. 定位视频对象中的作者引用
                 photo_key = f"VisionVideoDetailPhoto:{self.video_id}"
@@ -480,6 +597,19 @@ class KuaishouParser(BaseParser):
 
     def get_image_list(self):
         try:
+            if self.page_type == "GRAPHQL":
+                atlas = self.structured_data.get("photo", {}).get("atlas")
+                if isinstance(atlas, dict):
+                    image_urls = []
+                    cdn = self._first_cdn(atlas)
+                    for image_path in atlas.get("list") or []:
+                        image_url = self._build_resource_url(cdn, image_path)
+                        if image_url:
+                            image_urls.append(image_url)
+                    if image_urls:
+                        return image_urls
+                return []
+
             if self.page_type not in ("ATLAS", "VIDEO"):
                 return []
 
