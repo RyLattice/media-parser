@@ -84,7 +84,10 @@ class XiaohongshuParser(BaseParser):
             return None
 
         json_str = match.group(1)
-        json_str = re.sub(r':\s*undefined\b', ':null', json_str)
+        json_str = re.sub(r'\bundefined\b', 'null', json_str)
+        json_str = re.sub(r'new\s+Map\s*\([^)]*\)', '{}', json_str)
+        json_str = re.sub(r'new\s+Set\s*\([^)]*\)', '[]', json_str)
+        json_str = re.sub(r'new\s+Date\s*\([^)]*\)', 'null', json_str)
         try:
             full_data = json.loads(json_str)
         except json.JSONDecodeError as e:

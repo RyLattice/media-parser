@@ -14,6 +14,13 @@ class XiaohongshuParserTest(unittest.TestCase):
         self.assertEqual(parser.get_author_info()["nickname"], "PC用户")
         self.assertEqual(parser.get_cover_photo_url(), "http://img1.jpg")
 
+    def test_extract_note_with_js_constructs(self):
+        html = '<script>window.__INITIAL_STATE__ = {"note": {"firstNoteId": "note123", "noteDetailMap": {"note123": {"note": {"title": "JS\u6d4b\u8bd5", "desc": "JS\u63cf\u8ff0", "user": {"nickname": "JS\u7528\u6237"}, "imageList": []}}}}, "extra": undefined, "mapStore": new Map([]), "setStore": new Set(["a"])}</script>'
+        parser = XiaohongshuParser.__new__(XiaohongshuParser)
+        note = parser._extract_note_from_html(html)
+        self.assertIsNotNone(note)
+        self.assertEqual(note.get("title"), "JS测试")
+
     def test_extract_note_from_mobile_initial_state(self):
         html = '<script>window.__INITIAL_STATE__ = {"noteData": {"data": {"noteData": {"title": "\u79fb\u52a8\u7aef\u6807\u9898", "desc": "\u79fb\u52a8\u7aef\u63cf\u8ff0", "user": {"nickName": "\u79fb\u52a8\u7aef\u7528\u6237", "userId": "u456", "avatar": "http://m_avatar.jpg"}, "imageList": [{"url": "http://m_img1.jpg", "livePhoto": true, "stream": {"h264": [{"masterUrl": "http://live.mp4"}]}}]}}}}</script>'
         parser = XiaohongshuParser.__new__(XiaohongshuParser)

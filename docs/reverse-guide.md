@@ -24,11 +24,16 @@ graph TD
 * **提取套路**：
   ```python
   import re, json
-  # 使用正则非贪婪或贪婪匹配 script 块中的 JSON
-  pattern = re.compile(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?\});</script>', re.DOTALL)
+  # 使用正则匹配 script 块中的状态对象
+  pattern = re.compile(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?\});?</script>', re.DOTALL)
   match = pattern.search(html_content)
   if match:
-      data = json.loads(match.group(1))
+      raw = match.group(1)
+      # 清洗非标准 JSON 的 JavaScript 表达式 (如 undefined, new Map, new Set)
+      raw = re.sub(r'\bundefined\b', 'null', raw)
+      raw = re.sub(r'new\s+Map\s*\([^)]*\)', '{}', raw)
+      raw = re.sub(r'new\s+Set\s*\([^)]*\)', '[]', raw)
+      data = json.loads(raw)
   ```
 
 ---

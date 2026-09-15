@@ -36,16 +36,22 @@
   * **PC 桌面端长链**（含 `source=webshare` 等）：优先使用 **PC User-Agent** 访问。
   * **自动回退**：若首选 UA 遭遇 302/404 或拦截，解析器自动切换为备用 UA 再次发起请求。
 
-### 2.2 正则状态提取与结构兼容
+### 2.2 正则状态提取与 JS 表达式兼容清洗
 ```python
 import re, json
 
-# 1. 正则提取并清洗 :undefined 为 :null
+# 1. 正则匹配 window.__INITIAL_STATE__
 pattern = re.compile(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?\})</script>', re.DOTALL)
 match = pattern.search(html_content) or re.search(r'window\.__INITIAL_STATE__\s*=\s*(\{.*\})', html_content, re.DOTALL)
 
 if match:
-    json_str = re.sub(r':\s*undefined\b', ':null', match.group(1))
+    json_str = match.group(1)
+    # 清洗非标准 JSON 的 JavaScript 表达式 (如 undefined, new Map, new Set, new Date)
+    json_str = re.sub(r'\bundefined\b', 'null', json_str)
+    json_str = re.sub(r'new\s+Map\s*\([^)]*\)', '{}', json_str)
+    json_str = re.sub(r'new\s+Set\s*\([^)]*\)', '[]', json_str)
+    json_str = re.sub(r'new\s+Date\s*\([^)]*\)', 'null', json_str)
+    
     full_data = json.loads(json_str)
 
     # 2. 兼容 PC 桌面端数据结构
@@ -100,10 +106,15 @@ if match:
 3. **缺少 `xsec_source` 导致 H5 页面返回 404/安全校验**：
    * *原因*：在 URL 清洗阶段若仅保留 `xsec_token` 而丢弃了 `xsec_source`，移动端 H5 接口会因缺少渠道来源标识而拒绝渲染笔记数据。
    * *解法*：在 [utils/web_fetcher.py](file:///Users/leo/Projects/media-parser/utils/web_fetcher.py) 的 `UrlParser.extract_video_address` 中完整保留 `xsec_token`, `xsec_source`, `source`, `xhsshare`, `app_platform` 等核心参数。
-4. **字符转义与 `undefined` 序列化**：
-   * HTML 内嵌的 JS 对象常包含 `:undefined`，直接 `json.loads` 会抛出异常，需统一正则替换为 `:null`。
-5. **已删除 / 私密笔记识别 (`MEDIA_DELETED_OR_PRIVATE`)**：
-   * 当笔记被作者删除或设置为私密不可见时，小红书 SSR 仍会返回 HTML，但 `noteDetailMap[firstNoteId]['note']` 实体为空对象 `{}`，或直接跳转官方 404 拦截路由。解析器已对此类终态进行精准捕获并透传 `MEDIA_DELETED_OR_PRIVATE` 状态码，避免误判。
+4. **前端 SSR 状态注水包含原生 JavaScript 表达式破坏标准 JSON**：
+   * *原因*：小红书近期前端升级，在 `window.__INITIAL_STATE__` 中引入了 `new Map([])`、`new Set(...)`、`new Date(...)` 以及孤立的 `undefined`，导致直接调用 `json.loads` 时抛出 `JSONDecodeError`。
+   * *解法*：在反序列化之前，先通过正则清洗将 `undefined` 替换为 `null`、`new Map(...)` 替换为 `{}`、`new Set(...)` 替换为 `[]`、`new Date(...)` 替换为 `null`。
+5. **缺少 `xsec_token` 触发平台 404 风控拦截 (错误码 300031)**：
+   * *原因*：直接截断的笔记 URL 或部分旧短链若未包含 `xsec_token`，小红书安全网关会强制重定向至 `/404/sec_...`（“当前笔记暂时无法浏览”）。
+   * *解法*：分享链接必须保留完整的 `xsec_token` 签名；重定向提取器完整保留来源签名参数。
+6. **已删除 / 私密笔记识别与错误码精准透传 (`MEDIA_DELETED_OR_PRIVATE`)**：
+   * 当笔记被作者删除或设置为私密不可见时，小红书会返回 `404?source=note&noteId=...` 或 SSR 数据中 `noteDetailMap[firstNoteId]['note']` 为 `{}`。
+   * API 层优先透传解析器的 `terminal_error`（状态码 `MEDIA_DELETED_OR_PRIVATE`），避免将已删除作品误报为 `XIAOHONGSHU_COOKIE_REQUIRED`。
 
 ---
 
