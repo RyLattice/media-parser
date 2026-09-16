@@ -11,6 +11,14 @@ class UrlParserTest(unittest.TestCase):
         text = "复制打开应用 https://v.douyin.com/abc123/ 查看作品"
         self.assertEqual(UrlParser.get_url(text), "https://v.douyin.com/abc123/")
 
+    def test_extracts_and_cleans_douyin_passcode_numeric_suffix(self):
+        text = "7.46 复制打开抖音 https://v.douyin.com/TkRst--_MmU/3.05"
+        self.assertEqual(UrlParser.get_url(text), "https://v.douyin.com/TkRst--_MmU/")
+
+    def test_extracts_first_url_when_glued_together(self):
+        text = "https://weixin.qq.com/sph/AUIdAnYCUMhttps://weixin.qq.com/sph/AH81IDXvsU"
+        self.assertEqual(UrlParser.get_url(text), "https://weixin.qq.com/sph/AUIdAnYCUM")
+
     def test_get_url_handles_non_string_values(self):
         for value in (None, 1, {}, []):
             with self.subTest(value=value):
@@ -18,6 +26,7 @@ class UrlParserTest(unittest.TestCase):
 
     def test_preserves_only_platform_specific_query_parameters(self):
         cases = [
+            ("https://www.goofish.com/item?itemId=834469366646&noise=x", "https://www.goofish.com/item?itemId=834469366646"),
             ("https://haokan.baidu.com/v?vid=11&noise=x", "https://haokan.baidu.com/v?vid=11"),
             ("https://isee.weishi.qq.com/ws/app-pages/share/index.html?id=22&noise=x", "https://isee.weishi.qq.com/ws/app-pages/share/index.html?id=22"),
             ("https://www.xiaohongshu.com/explore/33?xsec_token=token&noise=x", "https://www.xiaohongshu.com/explore/33?xsec_token=token"),

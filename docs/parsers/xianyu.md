@@ -10,6 +10,7 @@
 * **支持媒体类型**：商品高清大图 (JPEG/PNG) / 宝贝标题与描述
 * **常见链接形态**：
   * 口令/短链：`https://e.tb.cn/h.87fj9SNrqHW8kfC?tk=y1E5Tb4wkGd`
+  * 闲鱼 Web/H5 链接：`https://www.goofish.com/item?itemId=834469366646`、`https://h5.m.goofish.com/item?id=...`
   * 商品长链：`https://2.taobao.com/item.htm?id=123456789`
 * **Cookie 依赖**：无需 Cookie。
 

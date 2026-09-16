@@ -103,10 +103,17 @@ class UrlParser:
             return None
         url_pattern = re.compile(r'https?:\/\/(?:www\.|[-a-zA-Z0-9.@:%_+~#=]{1,256}\.[a-zA-Z0-9()]{1,24})\b(?:[-a-zA-Z0-9()@:%_+.~#?&//=]*?)(?=(?:https?:\/\/|$|\s))')
         match = url_pattern.search(text)
-        if match:
-            return match.group()
-        else:
+        if not match:
             return None
+        raw_url = match.group()
+        # 清洗抖音/快手等短链误拼接的口令数字后缀（如 /3.05、/7.46）
+        douyin_match = re.match(r'^(https?:\/\/v\.douyin\.com\/[a-zA-Z0-9_-]+)\/\d+(?:\.\d+)?\/?$', raw_url)
+        if douyin_match:
+            return douyin_match.group(1) + '/'
+        kuaishou_match = re.match(r'^(https?:\/\/v\.kuaishou\.com\/[a-zA-Z0-9_-]+)\/\d+(?:\.\d+)?\/?$', raw_url)
+        if kuaishou_match:
+            return kuaishou_match.group(1) + '/'
+        return raw_url
 
     @staticmethod
     def get_domain(url):
@@ -182,6 +189,15 @@ class UrlParser:
                 address = f"{address}?{urlencode(preserved_params)}"
         elif platform == "快手":
             address = address.replace('http://', 'https://')
+        elif platform == "闲鱼":
+            query_params = parse_qs(parsed_url.query)
+            preserved_params = []
+            for key in ('id', 'itemId', 'item_id', 'price', 'tk'):
+                value = query_params.get(key, [None])[0]
+                if value is not None:
+                    preserved_params.append((key, value))
+            if preserved_params:
+                address = f"{address}?{urlencode(preserved_params)}"
         elif platform == "酷狗音乐":
             query_params = parse_qs(parsed_url.query)
             preserved_params = []
@@ -497,6 +513,9 @@ class UrlParser:
             params_hash = query_params.get('hash', [None])[0]
             if params_hash:
                 return params_hash
+            params_item_id = query_params.get('itemId', [None])[0] or query_params.get('item_id', [None])[0]
+            if params_item_id:
+                return params_item_id
             params_id = query_params.get('id', [None])[0]
             if params_id:
                 return params_id

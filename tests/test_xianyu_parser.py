@@ -27,7 +27,18 @@ class XianyuParserTest(unittest.TestCase):
         with patch("requests.Session.get", return_value=page_resp):
             parser = XianyuParser(url)
 
-        self.assertEqual(parser.get_title_content(), "闲鱼商品 (商品ID: 967494320598, 标价: ¥12.2)")
+    def test_parses_goofish_item_id_url(self):
+        page_resp = Mock()
+        page_resp.raise_for_status.return_value = None
+        page_resp.text = "<html><body>闲鱼商品页</body></html>"
+
+        url = "https://www.goofish.com/item?itemId=834469366646"
+        with patch("requests.Session.get", return_value=page_resp):
+            parser = XianyuParser(url)
+
+        self.assertEqual(parser.get_title_content(), "闲鱼商品 (商品ID: 834469366646)")
+        self.assertEqual(parser.get_image_list(), ["https://www.goofish.com/item?itemId=834469366646"])
+        self.assertEqual(parser.get_cover_photo_url(), "https://www.goofish.com/item?itemId=834469366646")
 
     def test_invalid_url_handles_gracefully(self):
         parser = XianyuParser("https://e.tb.cn/invalid")

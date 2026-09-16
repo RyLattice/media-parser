@@ -47,7 +47,17 @@ class XianyuParser(BaseParser):
             if not self.item_id:
                 parsed_real = urlparse(self.real_url)
                 params_real = parse_qs(parsed_real.query)
-                self.item_id = (params_real.get("id") or [None])[0]
+                self.item_id = (
+                    params_real.get("itemId")
+                    or params_real.get("id")
+                    or params_real.get("item_id")
+                    or [None]
+                )[0]
+                if not self.price:
+                    self.price = (params_real.get("price") or [None])[0]
+
+            if not self.target_url and self.item_id:
+                self.target_url = f"https://www.goofish.com/item?itemId={self.item_id}"
 
             if self.target_url:
                 self.image_list = [self.target_url]
