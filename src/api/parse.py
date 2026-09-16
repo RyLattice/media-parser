@@ -77,10 +77,15 @@ def _execute_parse(text, access):
         if not share_url:
             response, status = make_response(400, '未找到有效的分享链接', None, False, 'URL_NOT_FOUND'), 400
             return response, status
-        
+
         # 1. 解析基础信息
         redirect_url = WebFetcher.fetch_redirect_url(share_url)
         if not redirect_url:
+            if not WebFetcher._is_allowed_target(share_url):
+                logger.error(f'This link is not supported for extraction: {share_url}')
+                response, status = make_response(400, '该链接尚未支持提取', None, False, 'PLATFORM_NOT_SUPPORTED'), 400
+                return response, status
+            platform = UrlParser.get_platform(share_url)
             response, status = make_response(400, '无法访问或识别该分享链接', None, False, 'REDIRECT_FAILED'), 400
             return response, status
 

@@ -101,7 +101,7 @@ class UrlParser:
     def get_url(text):
         if not isinstance(text, str):
             return None
-        url_pattern = re.compile(r'\bhttps?:\/\/(?:www\.|[-a-zA-Z0-9.@:%_+~#=]{1,256}\.[a-zA-Z0-9()]{1,6})\b(?:[-a-zA-Z0-9()@:%_+.~#?&//=]*)?')
+        url_pattern = re.compile(r'https?:\/\/(?:www\.|[-a-zA-Z0-9.@:%_+~#=]{1,256}\.[a-zA-Z0-9()]{1,24})\b(?:[-a-zA-Z0-9()@:%_+.~#?&//=]*?)(?=(?:https?:\/\/|$|\s))')
         match = url_pattern.search(text)
         if match:
             return match.group()
@@ -182,6 +182,15 @@ class UrlParser:
                 address = f"{address}?{urlencode(preserved_params)}"
         elif platform == "快手":
             address = address.replace('http://', 'https://')
+        elif platform == "酷狗音乐":
+            query_params = parse_qs(parsed_url.query)
+            preserved_params = []
+            for key in ('hash', 'sruserid', 'kgsscty1', 'chain'):
+                value = query_params.get(key, [None])[0]
+                if value is not None:
+                    preserved_params.append((key, value))
+            if preserved_params:
+                address = f"{address}?{urlencode(preserved_params)}"
         elif platform == "抖音":
             query_params = parse_qs(parsed_url.query)
             preserved_params = []

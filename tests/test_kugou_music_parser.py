@@ -66,6 +66,17 @@ class KugouMusicParserTest(unittest.TestCase):
         self.assertEqual(parser.media_type, "mv")
         self.assertEqual(parser.content_id, "48da1fe5cbe4f8774f73160042377b1e")
 
+    @patch("src.parsers.base_parser.requests.Session.get")
+    def test_supports_share_chain_html_redirect_path(self, get):
+        song = {"song_info": {"data": {"songName": "红红的太阳", "pay_type": 0, "url": "https://sharefs.kugou.com/full.mp3", "authors": [{"author_name": "张韶涵", "author_id": 123}]}}}
+        get.return_value = self.response(text=f"<script>var phpParam = {json.dumps(song, ensure_ascii=False)};</script>")
+        parser = KugouMusicParser("http://www.kugou.com/share/1ixUXa2G5V3.html")
+        self.assertEqual(parser.media_type, "song")
+        self.assertEqual(parser.content_id, "1ixUXa2G5V3")
+        self.assertEqual(parser.get_title_content(), "红红的太阳")
+        self.assertEqual(parser.get_author_info()["nickname"], "张韶涵")
+        self.assertEqual(parser.get_audio_url(), "https://sharefs.kugou.com/full.mp3")
+
 
 if __name__ == "__main__":
     unittest.main()

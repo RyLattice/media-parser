@@ -98,11 +98,11 @@ class ApiContractTest(unittest.TestCase):
 
     def test_rejects_unresolvable_redirect(self):
         with patch("src.api.parse.WebFetcher.fetch_redirect_url", return_value=None):
-            response = self.client.post("/api/parse", json={"text": "https://example.com"})
+            response = self.client.post("/api/parse", json={"text": "https://v.douyin.com/abc1234/"})
         self.assert_bad_request(response, "无法访问或识别该分享链接", "REDIRECT_FAILED")
 
     def test_rejects_unsupported_domain(self):
-        response = self.post_with_parser(self.parser(), "https://unsupported.example/video/1")
+        response = self.client.post("/api/parse", json={"text": "https://unsupported.example/video/1"})
         self.assert_bad_request(response, "该链接尚未支持提取", "PLATFORM_NOT_SUPPORTED")
 
     def test_rejects_empty_media_with_platform_specific_message(self):

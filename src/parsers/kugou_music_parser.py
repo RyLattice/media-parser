@@ -41,14 +41,21 @@ class KugouMusicParser(BaseParser):
     def _detect_media(url):
         parsed = urlparse(url or "")
         params = parse_qs(parsed.query)
-        path = parsed.path.lower()
-        desktop_mv = re.search(r"/mvweb/html/mv_([0-9a-f]{32})\.html", path)
+        path = parsed.path
+        path_lower = path.lower()
+        desktop_mv = re.search(r"/mvweb/html/mv_([0-9a-f]{32})\.html", path, re.I)
         if desktop_mv:
             return "mv", desktop_mv.group(1)
-        if "/mv" in path or "/mv/" in path:
+        if "/mv" in path_lower or "/mv/" in path_lower:
             return "mv", (params.get("hash") or [None])[0]
-        if "/share/song" in path or "/song" in path:
-            return "song", (params.get("chain") or [None])[0]
+        chain_path_match = re.search(r"/share/([a-zA-Z0-9_-]+)\.html", path)
+        if chain_path_match and chain_path_match.group(1).lower() not in ("song", "default", "index"):
+            return "song", chain_path_match.group(1)
+        chain = (params.get("chain") or [None])[0]
+        if chain:
+            return "song", chain
+        if "/share/song" in path_lower or "/song" in path_lower or "/share/default" in path_lower:
+            return "song", chain
         return None, None
 
     def _parse(self):
@@ -99,41 +106,68 @@ class KugouMusicParser(BaseParser):
         self.video_list = self._extract_mv_streams(payload.get("mvdata") or {})
 
     def _parse_song_page(self):
+        target_url = self.real_url
+        if self.content_id:
+            target_url = f"https://m.kugou.com/share/song.html?chain={self.content_id}"
+
         try:
-            response = self.session.get(self.real_url, headers=self.headers, timeout=10)
+            response = self.session.get(target_url, headers=self.headers, timeout=10)
             response.raise_for_status()
             self.html_content = response.text
         except Exception as exc:
             logger.warning("Failed to fetch Kugou song page: %s", exc)
-            return
-        match = re.search(r"var\s+phpParam\s*=\s*(\{.*?\});", self.html_content, re.DOTALL)
-        if not match:
-            return
-        try:
-            payload = json.loads(match.group(1))
-        except json.JSONDecodeError:
-            return
-        data = ((payload.get("song_info") or {}).get("data") or {})
-        self.title = data.get("songName") or data.get("fileName") or ""
-        cover = data.get("album_img") or data.get("imgUrl")
-        self.cover_url = cover.replace("{size}", "400") if isinstance(cover, str) else cover
-        authors = data.get("authors") or []
-        if authors and isinstance(authors[0], dict):
-            author = authors[0]
-            self.author = {
-                "nickname": author.get("author_name") or author.get("name") or "",
-                "author_id": str(author.get("author_id") or author.get("id") or ""),
-                "avatar": (author.get("avatar") or "").replace("{size}", "400"),
-            }
-        elif data.get("singerName"):
-            self.author["nickname"] = data["singerName"]
+            if target_url != self.real_url:
+                try:
+                    response = self.session.get(self.real_url, headers=self.headers, timeout=10)
+                    response.raise_for_status()
+                    self.html_content = response.text
+                except Exception:
+                    return
+            else:
+                return
 
-        # 付费、试听或平台明确报错的地址不能作为完整音频返回。
-        if data.get("error") or data.get("pay_type") not in (None, 0, "0"):
-            return
-        url = data.get("url")
-        if self._valid_url(url):
-            self.audio_url = url
+        match = re.search(r"var\s+phpParam\s*=\s*(\{.*?\});", self.html_content or "", re.DOTALL)
+        if match:
+            try:
+                payload = json.loads(match.group(1))
+                data = ((payload.get("song_info") or {}).get("data") or {})
+                self.title = data.get("songName") or data.get("fileName") or ""
+                cover = data.get("album_img") or data.get("imgUrl")
+                self.cover_url = cover.replace("{size}", "400") if isinstance(cover, str) else cover
+                authors = data.get("authors") or []
+                if authors and isinstance(authors[0], dict):
+                    author = authors[0]
+                    self.author = {
+                        "nickname": author.get("author_name") or author.get("name") or "",
+                        "author_id": str(author.get("author_id") or author.get("id") or ""),
+                        "avatar": (author.get("avatar") or "").replace("{size}", "400"),
+                    }
+                elif data.get("singerName"):
+                    self.author["nickname"] = data["singerName"]
+
+                # 付费、试听或平台明确报错的地址不能作为完整音频返回。
+                if not (data.get("error") or data.get("pay_type") not in (None, 0, "0")):
+                    url = data.get("url")
+                    if self._valid_url(url):
+                        self.audio_url = url
+                return
+            except Exception as e:
+                logger.debug("Failed to parse phpParam: %s", e)
+
+        match_smarty = re.search(r"var\s+dataFromSmarty\s*=\s*(\[.*?\]);", self.html_content or "", re.DOTALL)
+        if match_smarty:
+            try:
+                smarty_list = json.loads(match_smarty.group(1))
+                if smarty_list and isinstance(smarty_list[0], dict):
+                    item = smarty_list[0]
+                    self.title = item.get("song_name") or item.get("audio_name") or ""
+                    self.author = {
+                        "nickname": item.get("author_name") or "",
+                        "author_id": str(item.get("author_id") or ""),
+                        "avatar": "",
+                    }
+            except Exception as e:
+                logger.debug("Failed to parse dataFromSmarty: %s", e)
 
     @staticmethod
     def _extract_mv_streams(mvdata):
