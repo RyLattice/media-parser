@@ -86,6 +86,7 @@ class DouyinParser(BaseParser):
         self.is_music = bool(self.real_url and ('/music/' in self.real_url or '/share/music/' in self.real_url))
         self.is_collection = bool(self.real_url and ('/collection/' in self.real_url or '/mix/' in self.real_url or '/mix/detail/' in self.real_url))
         self.is_lvdetail = bool(self.real_url and ('/lvdetail/' in self.real_url or 'ep_id=' in self.real_url or 'episode_id=' in self.real_url or 'album_id=' in self.real_url or '/playlet/' in self.real_url or 'playlet_id=' in self.real_url or 'series_id=' in self.real_url))
+        self.is_note = bool(self.real_url and ('/note/' in self.real_url or '/slides/' in self.real_url or '/share/slides/' in self.real_url or '/share/note/' in self.real_url))
         self.aweme_id = UrlParser.get_video_id(self.real_url)
         parsed = urllib.parse.urlparse(self.real_url) if self.real_url else None
         q = urllib.parse.parse_qs(parsed.query) if parsed else {}
@@ -715,18 +716,39 @@ class DouyinParser(BaseParser):
                     return ssr_data
             return None
 
-        # 1. 优先尝试移动端 Feed 核心接口（主路径：免 Argus 门禁、零 403、响应毫秒级）
+        # 1. 针对明确的图文/幻灯片作品 (/note/ 或 /slides/)：
+        # 优先请求 PC Web Detail API 以获取包含 LivePhoto 实况视频流的完整元数据；
+        # 若 Web API 遭遇风控或失败，再自动降级至分享页 SSR（至少保障静态原图可用）。
+        if getattr(self, 'is_note', False):
+            detail_api = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp"
+                          f"&aid=6383&channel=channel_pc_web&aweme_id={self.aweme_id}")
+            data = self._request_api_with_retry(
+                detail_api,
+                referer=f"https://www.douyin.com/note/{self.aweme_id}?previous_page=web_code_link",
+                validate=lambda d: bool(d.get('aweme_detail')),
+            )
+            if data:
+                return data
+            if getattr(self, '_terminal_filter_detail', None):
+                logger.info(f"作品确认处于明确的不可用终端状态，跳过 SSR HTML 兜底解析: {self.real_url}")
+                return None
+            share_ssr = self._try_share_ssr_detail()
+            if share_ssr:
+                return share_ssr
+            return None
+
+        # 2. 针对常规视频：优先尝试移动端 Feed 核心接口（主路径：免 Argus 门禁、零 403、响应毫秒级）
         mobile_data = self._request_mobile_feed(self.aweme_id)
         if mobile_data:
             return mobile_data
 
-        # 2. 分享页 SSR（免 a_bogus）：mobile miss 时先走这里，避免先烧 8 次 Argus 403
+        # 3. 分享页 SSR（免 a_bogus）：常规视频 mobile miss 时先走这里，避免先烧 8 次 Argus 403
         share_ssr = self._try_share_ssr_detail()
         if share_ssr:
             return share_ssr
 
-        # 3. 兜底路径：当为图文作品（Note）或分享页未收录时，回退到 Web API 并进行退避重试
-        page_type = "note" if (self.real_url and ('/note/' in self.real_url or '/slides/' in self.real_url)) else "video"
+        # 4. 兜底路径：当分享页未收录时，回退到 Web API 并进行退避重试
+        page_type = "note" if getattr(self, 'is_note', False) else "video"
         detail_api = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp"
                       f"&aid=6383&channel=channel_pc_web&aweme_id={self.aweme_id}")
         data = self._request_api_with_retry(
@@ -742,7 +764,7 @@ class DouyinParser(BaseParser):
             logger.info(f"作品确认处于明确的不可用终端状态，跳过 SSR HTML 兜底解析: {self.real_url}")
             return None
 
-        # 4. 末级容灾：Web API 失败后若此前 SSR 未命中，再试一次（html 可能已缓存）
+        # 5. 末级容灾：Web API 失败后若此前 SSR 未命中，再试一次（html 可能已缓存）
         logger.info(f"抖音 a_bogus API 未返回有效详情，再次尝试 SSR HTML 兜底解析: {self.real_url}")
         if not self.html_content:
             self.fetch_html_content()

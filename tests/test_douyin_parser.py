@@ -805,6 +805,60 @@ class DouyinParserTest(unittest.TestCase):
         self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/cover.jpg")
         self.assertEqual(parser.get_real_video_url(), "https://cdn.douyin.com/ep1.mp4")
 
+    def test_note_routes_to_web_api_first_for_live_photo(self):
+        aweme_id = "7337547837338668300"
+        web_payload = {
+            "status_code": 0,
+            "aweme_detail": {
+                "aweme_id": aweme_id,
+                "desc": "实况作品测试",
+                "images": [
+                    {
+                        "url_list": ["https://p3.douyinpic.com/img1.jpg"],
+                        "video": {
+                            "play_addr": {
+                                "url_list": ["https://v1.douyinvod.com/live1.mp4"]
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        with patch.object(DouyinParser, "_request_api_with_retry", return_value=web_payload) as mock_web_api:
+            with patch.object(DouyinParser, "_try_share_ssr_detail") as mock_share_ssr:
+                parser = DouyinParser(f"https://www.iesdouyin.com/share/slides/{aweme_id}")
+                self.assertTrue(parser.is_note)
+                self.assertIsNotNone(parser.data)
+                mock_web_api.assert_called_once()
+                mock_share_ssr.assert_not_called()
+                images = parser.get_image_list()
+                self.assertEqual(len(images), 1)
+                self.assertEqual(images[0]["live_photo_url"], "https://v1.douyinvod.com/live1.mp4")
+
+    def test_note_falls_back_to_share_ssr_when_web_api_fails(self):
+        aweme_id = "7337547837338668300"
+        ssr_payload = {
+            "aweme_detail": {
+                "aweme_id": aweme_id,
+                "desc": "实况作品降级到SSR纯图片",
+                "images": [
+                    {
+                        "url_list": ["https://p3.douyinpic.com/img1.jpg"]
+                    }
+                ]
+            }
+        }
+        with patch.object(DouyinParser, "_request_api_with_retry", return_value=None) as mock_web_api:
+            with patch.object(DouyinParser, "_try_share_ssr_detail", return_value=ssr_payload) as mock_share_ssr:
+                parser = DouyinParser(f"https://www.douyin.com/note/{aweme_id}")
+                self.assertTrue(parser.is_note)
+                self.assertIsNotNone(parser.data)
+                mock_web_api.assert_called_once()
+                mock_share_ssr.assert_called_once()
+                images = parser.get_image_list()
+                self.assertEqual(len(images), 1)
+                self.assertEqual(images[0], "https://p3.douyinpic.com/img1.jpg")
+
 
 if __name__ == "__main__":
     unittest.main()

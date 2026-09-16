@@ -39,7 +39,7 @@
 
 ## 3. 核心逆向方案与多轨容灾机制
 
-抖音解析采用 **移动端 Feed 免 Argus 门禁主路径 + 移动端分享页 SSR 免签名次主路径 + Web API 退避重试兜底 + SSR HTML 末级容灾 + 流式 SSR (RSC) 深度解析** 的异构高可用架构。
+抖音解析采用 **图文/LivePhoto 优先 Web API (含实况视频流) + 常规视频移动端 Feed 免 Argus 主路径 + 移动端分享页 SSR 免签名次主路径/图文降级 + Web API 退避重试兜底 + SSR HTML 末级容灾 + 流式 SSR (RSC) 深度解析** 的异构高可用架构。
 
 ```mermaid
 flowchart TD
@@ -48,14 +48,19 @@ flowchart TD
     C -->|"独立音乐"| M1["请求 Music Detail API"]
     C -->|"连载合集"| K1["请求 Mix Aweme API"]
     C -->|"放映厅长片"| L1["请求 LVideo Detail API / 解析 PC 端 lvdetail"]
-    C -->|"普通视频/图文"| F0["1. 优先请求移动端 Feed API<br/>免 Argus 门禁 / 免 Cookie / 毫秒级直出<br/>(主节点 + 备用 snssdk 节点)"]
+    C -->|"图文/幻灯片/LivePhoto"| W0["1. 优先请求 Web 详情 API<br/>提取完整 LivePhoto 实况视频流<br/>(a_bogus 签名 + 指数退避重试)"]
+    C -->|"常规视频"| F0["1. 优先请求移动端 Feed API<br/>免 Argus 门禁 / 免 Cookie / 毫秒级直出<br/>(主节点 + 备用 snssdk 节点)"]
+    
+    W0 --> W1{"Web API 是否成功?"}
+    W1 -->|"成功 (获取完整 LivePhoto + 原图)"| E["提取高清流 / 实况图集 / 字幕 / 音频"]
+    W1 -->|"失败/风控拦截"| S0["降级至移动端分享页 SSR<br/>(至少保障静态高清原图可用)"]
     
     F0 --> F1{"Feed 匹配成功?"}
-    F1 -->|"成功 (常规视频 >95%)"| E["提取高清流 / 图集 / 字幕 / 音频"]
-    F1 -->|"未匹配 (Note图文/冷门作品)"| S0["2. 优先请求移动端分享页 SSR<br/>(iesdouyin.com + Mobile UA)<br/>花括号配对提取 _ROUTER_DATA / videoInfoRes"]
+    F1 -->|"成功 (常规视频 >95%)"| E
+    F1 -->|"未匹配 (冷门视频/特殊作品)"| S0["2. 优先请求移动端分享页 SSR<br/>(iesdouyin.com + Mobile UA)<br/>花括号配对提取 _ROUTER_DATA / videoInfoRes"]
     
     S0 --> S1{"分享页 SSR 成功?"}
-    S1 -->|"成功 (图文作品 >99%)"| E
+    S1 -->|"成功"| E
     S1 -->|"未匹配"| D1["3. 回退 Web 详情 API 兜底<br/>a_bogus 签名 + 动态指数退避重试 (最多8次)"]
     
     D1 --> D2{"Web API 响应判定"}
@@ -76,7 +81,7 @@ flowchart TD
     G4 --> E
 ```
 
-### 3.1 移动端 Feed 核心通道（主路径）
+### 3.1 移动端 Feed 核心通道（常规视频主路径）
 * **接口定义**：
   ```text
   主节点：https://api5-normal-c-hl.amemv.com/aweme/v1/feed/?aweme_id={aweme_id}&aid=1128
@@ -87,18 +92,21 @@ flowchart TD
   * **零风控依赖**：无需 `UIFID`、`x-secsdk-web-signature`、`a_bogus`、`msToken` 或任何 Cookie；
   * **高性能与高可用**：测试中常规视频 403 率为 0%，端到端耗时仅约 200ms；支持主备节点智能故障转移（若主节点未收录，自动故障转移至备用 `snssdk` 节点继续尝试）。
 
-### 3.2 移动端分享页 SSR（图文作品免签名直出通道）
-* **原理与优势**：
+### 3.2 图文与 LivePhoto 实况的 Web 详情主路径与 SSR 降级
+* **LivePhoto 核心提取原理**：
+  * 抖音图文与 LivePhoto 实况动图作品中，**仅 PC Web 详情接口 (`/aweme/v1/web/aweme/detail/`) 会在 `images[i].video.play_addr` 中下发实况动图的 MP4 视频流**；
+  * 移动端分享页 SSR (`iesdouyin.com/share/...`) 的 HTML 中只包含基础静态图片 URL，不包含实况视频流；
+  * 因此，对于图文/幻灯片作品（`note` / `slides`），**必须优先请求 PC Web 详情接口以获取完整的实况动图**；若遇到 Argus 403 风控，再自动降级至分享页 SSR 保证静态图片不失效。
+* **移动端分享页 SSR 解析与嵌套 JSON 花括号深度栈提取**：
   * **PC 端 CSR 空壳规避**：现代抖音 PC 网页端 (`www.douyin.com/video/{id}`) 属于纯客户端渲染（CSR）空壳页面（72KB 空 HTML，无内嵌数据）；而移动端分享页 `https://www.iesdouyin.com/share/video/{id}` 配合 Android 移动端 User-Agent，服务端依然完整输出包含 `_ROUTER_DATA` 与 `videoInfoRes.item_list` 的 SSR 数据；
-  * **嵌套 JSON 花括号深度栈提取**：通过 `_extract_json_object_after` 实现字符级花括号深度配对与转义字符跳过，彻底解决传统非贪婪正则 `\{.*?\}` 遇到首个 `}` 提前截断导致的 `JSONDecodeError`；
-  * **免风控与毫秒直出**：图文作品在 Mobile Feed 未命中后，**立即通过 1 次分享页 SSR 请求直接取回 18+ 原图与文案**，完全无需触碰 Web API，彻底告别 403 拦截与无效重试。
+  * **花括号深度栈提取**：通过 `_extract_json_object_after` 实现字符级花括号深度配对与转义字符跳过，彻底解决传统非贪婪正则 `\{.*?\}` 遇到首个 `}` 提前截断导致的 `JSONDecodeError`。
 
 ### 3.3 Web 详情接口与智能短路退避重试（兜底路径）
 * **作品详情接口**：
   ```text
   https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp&aid=6383&channel=channel_pc_web&aweme_id={aweme_id}&msToken={ms_token}&a_bogus={a_bogus}
   ```
-* **适用场景**：作为前两步（Mobile Feed 与分享页 SSR）均未收录时的末级兜底防护网。
+* **适用场景**：图文/实况作品主路径，以及常规视频前两步（Mobile Feed 与分享页 SSR）均未收录时的末级兜底防护网。
 * **退避重试与终态短路双重机制**：
   * **针对 Argus 概率性 403**：严格保留最大 8 次重试与紧凑退避（单次上限 0.8s），为特殊受限作品提供最终兜底保障；
   * **针对不可重试终端状态（短路熔断）**：当 Web API 明确返回已删除、仅自己可见或朋友日常权限等终端状态（`status_code == 0` 且带有 `filter_detail`）时，`_is_terminal_failure` 立即生效，**在第 1 次响应后立即终止重试**，并跳过无意义的 SSR HTML 兜底，将失效链接的整体耗时从 11~14 秒压缩至亚秒/秒级。
@@ -190,12 +198,12 @@ abogus = signer.get_abogus(play_url, signer.user_agent)
 3. **PC 端 CSR 空壳与移动端分享页 SSR 解析**：
    * *现象*：PC 端 `/video/{id}` 在无 Cookie / 匿名下返回纯客户端渲染空壳（72KB HTML，无任何 SSR 数据）；若用非贪婪正则 `_ROUTER_DATA\s*=\s*(\{.*?\});` 提取深层嵌套 JSON 会因提前截断而 100% 失败。
    * *解法*：统一请求移动端分享页 `https://www.iesdouyin.com/share/video/{id}` 并携带移动 UA，通过 `_extract_json_object_after` 花括号深度栈配对提取完整 `_ROUTER_DATA`，并在 `_find_aweme_detail` 中适配 `videoInfoRes.item_list`。
-4. **Argus 网关 403 拦截（`Blocked by ArgusSecurityPlugin Uifid Not Found`）与免签秒级直出**：
-   * *现象与机理*：PC Web 端 `/aweme/v1/web/aweme/detail/` 位于字节跳动 Argus 风控网关后，机房 IDC IP 匿名访问通常直接 403 拦截。
-   * *终极根治解法（双免签直出架构）*：
-     1. **常规视频**：走 **移动端 Feed 核心通道**（`api5-normal-c-hl.amemv.com`），免 Argus 门禁、免 Cookie、免签名，~200ms 直出；
-     2. **图文作品**：走 **移动端分享页 SSR 通道**，免 a_bogus 签名与 Web 风控，直接从 HTML 提取原图与文案，~200ms 直出；
-     3. **兜底保障**：Web a_bogus API 保留作为第 3 级兜底，配合终端状态即时短路熔断机制。
+4. **Argus 网关 403 拦截（`Blocked by ArgusSecurityPlugin Uifid Not Found`）与多轨直出架构**：
+   * *现象与机理*：PC Web 端 `/aweme/v1/web/aweme/detail/` 位于字节跳动 Argus 风控网关后，机房 IDC IP 匿名访问可能面临 403 拦截。
+   * *终极多轨路由策略*：
+     1. **常规视频**：走 **移动端 Feed 核心通道**（`api5-normal-c-hl.amemv.com`），免 Argus 门禁、免 Cookie、免签名，~200ms 直出；若未收录则走移动端分享页 SSR；
+     2. **图文/LivePhoto 作品**：由于实况动图 MP4 视频流仅存在于 Web Detail API 中（分享页 SSR 仅包含静态图），图文/幻灯片作品优先请求 **Web 详情接口** 提取完整实况；若遭遇 Argus 403 且重试耗尽，自动降级至 **分享页 SSR** 保障静态原图正常输出；
+     3. **兜底保障**：所有链路均配合终端状态（`_is_terminal_failure`）即时短路熔断机制。
 
 
 5. **私密/日常/已删除链接的不可重试终端状态与智能短路熔断**：
