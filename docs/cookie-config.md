@@ -17,7 +17,7 @@
 | **豆包 AI** | `DOUBAO_COOKIE` | - | 🟡 **可选 (无水印)**：公开图文免 Cookie；提取 1080P 无水印视频需要 | `sessionid_ss=xxx;` |
 | **即梦 AI** | `JIMENG_COOKIE` | - | 🟡 **可选 (扩展鉴权)**：公开分享免 Cookie；私有草稿/活动页鉴权需要 | `sessionid=xxx;` |
 | **微博** | `WEIBO_COOKIE` | - | 🟢 **免配置**：日常自动初始化访客 Session；提取受限长文/专栏时可选 | `SUB=xxx;` |
-| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置**：日常短视频/图集/LivePhoto 100% 免 Cookie；放映厅长片可选 | `s_v_web_id=xxx; __ac_nonce=xxx;` |
+| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置**：日常短视频/图集/LivePhoto 100% 免 Cookie；放映厅长片 (`/lvdetail/`) 可选 | `s_v_web_id=verify_xxx;` |
 
 ---
 

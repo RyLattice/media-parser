@@ -79,8 +79,6 @@ class DouyinParser(BaseParser):
         }
         self.ms_token = self.signer.get_ms_token()
         self.cookie = get_platform_cookie("douyin")
-        if self.cookie:
-            self.headers['Cookie'] = self.cookie
         self.ttwid = FALLBACK_TTWID
         self.webid = '7307457174287205926'
         self.is_music = bool(self.real_url and ('/music/' in self.real_url or '/share/music/' in self.real_url))
@@ -156,8 +154,20 @@ class DouyinParser(BaseParser):
         parts = []
         seen = set()
         if self.cookie:
-            parts.append(self.cookie)
-            seen = {kv.split('=', 1)[0].strip() for kv in self.cookie.split(';') if '=' in kv}
+            for item in self.cookie.split(';'):
+                if '=' not in item:
+                    continue
+                k, v = item.split('=', 1)
+                k = k.strip()
+                v = v.strip()
+                if k in ('__ac_nonce', '__ac_signature'):
+                    continue
+                # verify_ 开头的临时验证码通行证仅在放映厅 lvdetail 中使用，常规作品携带过期验证码会导致 403
+                if k == 's_v_web_id' and v.startswith('verify_') and not getattr(self, 'is_lvdetail', False):
+                    continue
+                if k not in seen:
+                    parts.append(f"{k}={v}")
+                    seen.add(k)
         if ttwid and 'ttwid' not in seen:
             parts.append(f"ttwid={ttwid}")
             seen.add('ttwid')
