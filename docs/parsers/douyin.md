@@ -25,8 +25,8 @@
   * 网页端独立音乐长链：`https://www.douyin.com/music/7123456789012345678`
   * 网页端合集长链：`https://www.douyin.com/collection/7123456789012345678`
 * **Cookie 依赖**：
-  * **普通视频与普通图文 (100% 免配)**：完全无需用户登录 Cookie。常规视频直连**移动端 Feed 核心通道**（免 Argus 门禁、免 Cookie、免签名、毫秒级直出）；普通图文自动通过分享页 SSR 提取无水印原图。
-  * **LivePhoto 实况动图 (`live_photo_url`)**：因动图流仅由 Web API (`/aweme/v1/web/aweme/detail/`) 下发，建议在 `.env` 中配置 PC Web 登录态 `DOUYIN_COOKIE="sessionid=...; UIFID=..."` 提升网关通过率。系统已内置 `__druidClientInfo` 自动解析，能自适应同步不同操作系统（Mac/Windows）的 UA 与平台指纹。
+  * **普通视频与普通图文 (100% 免配)**：完全无需用户登录 Cookie。常规视频直连**移动端 Feed 核心通道**（免 Argus 门禁、免 Cookie、免签名、毫秒级直出）；普通图文自动通过分享页 SSR 提取高清原图。
+  * **LivePhoto 实况动图 (`live_photo_url`)**：因动图流仅由 Web API (`/aweme/v1/web/aweme/detail/`) 下发，在住宅 IP / 本地环境下自动提取实况动图流；云服务器机房 IP 遭遇风控时自动保底降级为全量静态原图。
   * **放映厅长片 (`/lvdetail/`)**：受字节跳动严格风控保护，可在 `.env` 中配置人机滑块通行证 `DOUYIN_COOKIE="s_v_web_id=verify_..."`（代码已做路由隔离，常规作品会自动剔除过期验证码）。
 
 ---

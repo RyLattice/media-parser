@@ -1,4 +1,3 @@
-import base64
 import copy
 import json
 import os
@@ -80,7 +79,6 @@ class DouyinParser(BaseParser):
         }
         self.ms_token = self.signer.get_ms_token()
         self.cookie = get_platform_cookie("douyin")
-        self._sync_client_info_from_cookie()
         self.ttwid = FALLBACK_TTWID
         self.webid = '7307457174287205926'
         self.is_music = bool(self.real_url and ('/music/' in self.real_url or '/share/music/' in self.real_url))
@@ -102,44 +100,6 @@ class DouyinParser(BaseParser):
         # （固定 72KB，不含 __UNIVERSAL_DATA_FOR_REHYDRATION__ / aweme_detail / 标题），
         # 预取既拿不到数据，又多消耗一次请求配额并增加整体延迟。改为仅在 API 全部失败时惰性拉取。
         self.data = self.fetch_html_data()
-
-    def _sync_client_info_from_cookie(self):
-        """
-        若 Cookie 中包含 __druidClientInfo（内嵌了浏览器指纹如 userAgent），
-        则自动将其同步至 signer.user_agent 和请求头，防止 Argus 网关因指纹与 UA/Platform 不一致拦截 403。
-        """
-        if not self.cookie:
-            return
-        m = re.search(r'(?:^|;\s*)__druidClientInfo=([^;]+)', self.cookie)
-        if not m:
-            return
-        raw_val = m.group(1).strip()
-        try:
-            decoded_str = base64.b64decode(urllib.parse.unquote(raw_val)).decode('utf-8', errors='ignore')
-            if '%' in decoded_str:
-                decoded_str = urllib.parse.unquote(decoded_str)
-            info = json.loads(decoded_str)
-            ua = info.get('userAgent')
-            if ua and isinstance(ua, str):
-                self.signer.user_agent = ua
-                self.headers['User-Agent'] = ua
-                if 'Mac' in ua or 'Macintosh' in ua:
-                    self.headers['sec-ch-ua-platform'] = '"macOS"'
-                elif 'Windows' in ua:
-                    self.headers['sec-ch-ua-platform'] = '"Windows"'
-                elif 'Linux' in ua:
-                    self.headers['sec-ch-ua-platform'] = '"Linux"'
-                elif 'Android' in ua:
-                    self.headers['sec-ch-ua-platform'] = '"Android"'
-                elif 'iPhone' in ua or 'iPad' in ua:
-                    self.headers['sec-ch-ua-platform'] = '"iOS"'
-
-                chrome_match = re.search(r'Chrome/(\d+)', ua)
-                if chrome_match:
-                    ver = chrome_match.group(1)
-                    self.headers['sec-ch-ua'] = f'"Google Chrome";v="{ver}", "Not:A-Brand";v="8", "Chromium";v="{ver}"'
-        except Exception as e:
-            logger.debug(f"Failed to parse __druidClientInfo from cookie: {e}")
 
     def fetch_html_content(self):
         """

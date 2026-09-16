@@ -16,7 +16,7 @@
 | **拼多多** | `PINDUODUO_COOKIE` | `PDD_COOKIE` | 🟡 **部分依赖**：商品图集免 Cookie；多多视频短视频流解析需要 | `PDDAccessToken=xxx;` |
 | **豆包 AI** | `DOUBAO_COOKIE` | - | 🟡 **可选 (无水印)**：公开图文免 Cookie；提取 1080P 无水印视频需要 | `sessionid_ss=xxx;` |
 | **即梦 AI** | `JIMENG_COOKIE` | - | 🟡 **可选 (扩展鉴权)**：公开分享免 Cookie；私有草稿/活动页鉴权需要 | `sessionid=xxx;` |
-| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **普通视频/静态图文免配**：日常短视频与静态图片 100% 免 Cookie；提取 LivePhoto 实况动图建议配置 Web 端登录态；放映厅长片 (`/lvdetail/`) 可选滑块通行证 | 直接全量复制浏览器 Request Header 中的完整 Cookie（系统自动识别与清洗） |
+| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置 (100% 免 Cookie)**：日常短视频/图文图集免 Cookie；放映厅长片 (`/lvdetail/`) 可选滑块凭证 | `s_v_web_id=verify_xxx;` |
 
 ---
 
@@ -120,18 +120,13 @@ docker compose up -d
 3. 填入 `.env` 中的 `DOUBAO_COOKIE`。
 
 ### 3.6 抖音 (`DOUYIN_COOKIE`)
-> **核心原则**：常规视频与普通静态图文 **100% 免 Cookie**。仅在需要获取 **LivePhoto 实况动图流** 或 **放映厅长视频** 时推荐配置。
+> **核心原则**：常规短视频、图集、LivePhoto、原声音乐等 **100% 免配置 Cookie 即可解析**。
 
-* **获取步骤（无需人肉挑拣字段，直接全量复制）**：
-  1. 使用电脑浏览器打开并登录 [抖音网页版 (douyin.com)](https://www.douyin.com/)。
-  2. 按 `F12` 打开开发者工具，切换到 **Network (网络)** 标签页。
-  3. 刷新页面或点击任意视频，在左侧任意 `douyin.com` 接口请求的 **Request Headers** 中找到 `Cookie`。
-  4. **直接整串复制全部 Cookie 内容**，填入 `.env` 中的 `DOUYIN_COOKIE` 即可。
-
-* **系统全自动解析与防护机制**：
-  * **自动同步浏览器指纹 (`__druidClientInfo`)**：若复制的 Cookie 包含客户端指纹，代码会自动提取你当时浏览器的真实 `User-Agent` 与操作系统（macOS / Windows / Linux 等），并动态对齐请求头和签名参数，彻底避免因“请求头与 Cookie 指纹不匹配”触发 Argus 风控 403 拦截。
-  * **自动关联 `ttwid` 与 `UIFID`**：全量复制能保证设备标识 `UIFID` 与会话 `ttwid` 严格配对，避免服务端因身份错配判定失效。
-  * **自动过滤/隔离干扰项**：若 Cookie 中包含过期的滑块临时凭据（`s_v_web_id=verify_...`），代码在解析常规作品与 LivePhoto 时会自动剔除，仅在放映厅路由中生效，防止过期凭证误触发风控。
+* **常规作品解析**：
+  * 常规短视频直连移动端 Feed 免 Argus 门禁通道，毫秒级直出；
+  * 普通图文与 LivePhoto 实况作品自动走 Web 详情接口与 SSR HTML 双轨路由：在家庭宽带或住宅 IP 下自动提取实况动图流，在云服务器机房 IP 遭遇风控时自动保底降级为全量无水印高清静态图片，保障服务不报错、稳定可用。
+* **放映厅长视频 / 短剧 (`/lvdetail/`)（可选）**：
+  * 若需解析受限放映厅长片，可在浏览器完成人机滑块后，在 **Application -> Cookies** 中提取临时凭证 `s_v_web_id=verify_xxx;` 填入 `.env`。代码已实现路由隔离，在解析常规作品时会自动过滤掉过期滑块码，避免误触发风控。
 
 ---
 

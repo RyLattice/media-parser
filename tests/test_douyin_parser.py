@@ -859,27 +859,6 @@ class DouyinParserTest(unittest.TestCase):
                 self.assertEqual(len(images), 1)
                 self.assertEqual(images[0], "https://p3.douyinpic.com/img1.jpg")
 
-    def test_sync_client_info_from_cookie(self):
-        # 编码一个 macOS Chrome 134 的 __druidClientInfo
-        client_info = {
-            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-            "screenWidth": 1470,
-            "screenHeight": 956
-        }
-        import base64
-        import json
-        b64_val = base64.b64encode(json.dumps(client_info).encode("utf-8")).decode("utf-8")
-        cookie_str = f"s_v_web_id=verify_123; __druidClientInfo={b64_val}; ttwid=abc"
-
-        with patch("src.parsers.douyin_parser.get_platform_cookie", return_value=cookie_str):
-            with patch.object(DouyinParser, "fetch_html_content", return_value="<html></html>"):
-                with patch.object(DouyinParser, "fetch_html_data", return_value={}):
-                    parser = DouyinParser("https://www.douyin.com/video/7341234567890123456")
-                    self.assertEqual(parser.signer.user_agent, client_info["userAgent"])
-                    self.assertEqual(parser.headers["User-Agent"], client_info["userAgent"])
-                    self.assertEqual(parser.headers["sec-ch-ua-platform"], '"macOS"')
-                    self.assertIn('"Chromium";v="134"', parser.headers["sec-ch-ua"])
-
 
 if __name__ == "__main__":
     unittest.main()
