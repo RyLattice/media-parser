@@ -16,8 +16,7 @@
 | **拼多多** | `PINDUODUO_COOKIE` | `PDD_COOKIE` | 🟡 **部分依赖**：商品图集免 Cookie；多多视频短视频流解析需要 | `PDDAccessToken=xxx;` |
 | **豆包 AI** | `DOUBAO_COOKIE` | - | 🟡 **可选 (无水印)**：公开图文免 Cookie；提取 1080P 无水印视频需要 | `sessionid_ss=xxx;` |
 | **即梦 AI** | `JIMENG_COOKIE` | - | 🟡 **可选 (扩展鉴权)**：公开分享免 Cookie；私有草稿/活动页鉴权需要 | `sessionid=xxx;` |
-| **微博** | `WEIBO_COOKIE` | - | 🟢 **免配置**：日常自动初始化访客 Session；提取受限长文/专栏时可选 | `SUB=xxx;` |
-| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置**：日常短视频/图集/LivePhoto 100% 免 Cookie；放映厅长片 (`/lvdetail/`) 可选 | `s_v_web_id=verify_xxx;` |
+| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **普通视频/静态图文免配**：日常短视频与静态图片 100% 免 Cookie；提取 LivePhoto 实况动图建议配置 Web 端登录态；放映厅长片 (`/lvdetail/`) 可选滑块通行证 | `sessionid=xxx; UIFID=xxx;`（LivePhoto实况）<br>`s_v_web_id=verify_xxx;`（放映厅） |
 
 ---
 
@@ -119,6 +118,19 @@ docker compose up -d
    sessionid_ss=你的sessionid_ss值;
    ```
 3. 填入 `.env` 中的 `DOUBAO_COOKIE`。
+
+### 3.6 抖音 (`DOUYIN_COOKIE`)
+> **核心原则**：常规视频与普通图文 **100% 免 Cookie**。仅在需要稳定获取 **LivePhoto 实况动图流** 或 **放映厅长视频** 时才需要配置。
+
+1. **场景 A：提取 LivePhoto 实况动图（长期有效）**
+   - 使用浏览器打开 [抖音网页版 (douyin.com)](https://www.douyin.com/) 并登录。
+   - 按 `F12` 打开开发者工具，在 **Network (网络)** 标签页中找到任意 `douyin.com` 请求的 Request Headers。
+   - 完整复制 `Cookie` 请求头（或保留 `sessionid`、`UIFID`、`sid_tt` 核心字段）。
+   - **智能 UA 指纹同步**：系统内置自适应机制，若复制的 Cookie 包含 `__druidClientInfo`（内嵌浏览器 UA 指纹），代码会自动解析并同步请求头中的 `User-Agent` 与平台头，防止因 UA 不匹配被 Argus 风控网关 403 拦截。
+2. **场景 B：放映厅长视频 / 短剧 (`/lvdetail/`)（短期有效）**
+   - 访问放映厅或长视频页面完成滑块验证码。
+   - 在 **Application -> Cookies** 中提取 `s_v_web_id=verify_xxx;` 填入。
+   - **智能隔离**：代码已实现路由隔离，在解析常规作品时会自动过滤掉过期的 `verify_xxx`，仅在放映厅路由中生效。
 
 ---
 
