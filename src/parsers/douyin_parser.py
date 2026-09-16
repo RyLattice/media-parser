@@ -115,8 +115,10 @@ class DouyinParser(BaseParser):
             return
         raw_val = m.group(1).strip()
         try:
-            decoded_bytes = base64.b64decode(urllib.parse.unquote(raw_val))
-            info = json.loads(decoded_bytes.decode('utf-8'))
+            decoded_str = base64.b64decode(urllib.parse.unquote(raw_val)).decode('utf-8', errors='ignore')
+            if '%' in decoded_str:
+                decoded_str = urllib.parse.unquote(decoded_str)
+            info = json.loads(decoded_str)
             ua = info.get('userAgent')
             if ua and isinstance(ua, str):
                 self.signer.user_agent = ua
