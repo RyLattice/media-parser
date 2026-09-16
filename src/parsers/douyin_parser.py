@@ -771,7 +771,7 @@ class DouyinParser(BaseParser):
         # 若 Web API 遭遇风控或失败，再自动降级至分享页 SSR（至少保障静态原图可用）。
         if getattr(self, 'is_note', False):
             detail_api = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp"
-                          f"&aid=6383&channel=channel_pc_web&aweme_id={self.aweme_id}")
+                          f"&aid=6383&channel=channel_pc_web&pc_client_type=1&version_code=190500&version_name=19.5.0&aweme_id={self.aweme_id}")
             data = self._request_api_with_retry(
                 detail_api,
                 referer=f"https://www.douyin.com/note/{self.aweme_id}?previous_page=web_code_link",
@@ -800,7 +800,7 @@ class DouyinParser(BaseParser):
         # 4. 兜底路径：当分享页未收录时，回退到 Web API 并进行退避重试
         page_type = "note" if getattr(self, 'is_note', False) else "video"
         detail_api = ("https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp"
-                      f"&aid=6383&channel=channel_pc_web&aweme_id={self.aweme_id}")
+                      f"&aid=6383&channel=channel_pc_web&pc_client_type=1&version_code=190500&version_name=19.5.0&aweme_id={self.aweme_id}")
         data = self._request_api_with_retry(
             detail_api,
             referer=f"https://www.douyin.com/{page_type}/{self.aweme_id}?previous_page=web_code_link",
