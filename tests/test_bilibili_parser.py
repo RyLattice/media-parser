@@ -179,6 +179,22 @@ class BilibiliParserTest(unittest.TestCase):
             self.assertEqual(parser.get_author_info()["avatar"], "https://example.com/up.jpg")
             self.assertEqual(parser.get_real_video_url(), "https://cdn.example/bangumi.mp4")
 
+    def test_fetch_video_info_uses_view_headers(self):
+        mock_response = Mock()
+        mock_response.json.return_value = {"code": 0, "data": {"title": "直接请求测试"}}
+        mock_response.raise_for_status = Mock()
+
+        with patch("requests.Session.get", return_value=mock_response) as mock_get:
+            parser = BilibiliParser("https://www.bilibili.com/video/BV1asTR6FEWu")
+            self.assertEqual(parser.view_headers["User-Agent"], "okhttp/4.9.3")
+            mock_get.assert_called_with(
+                parser.API_VIEW,
+                params={"bvid": "BV1asTR6FEWu"},
+                headers=parser.view_headers,
+                timeout=10,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
+

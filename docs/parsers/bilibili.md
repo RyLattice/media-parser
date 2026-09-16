@@ -67,6 +67,9 @@ sequenceDiagram
    * **解法**：如上述参数配置，强制指定 `platform=html5` 请求，B 站服务端会自动返回封装好的 Progressive MP4 单文件流。
 2. **防盗链 (403 Forbidden)**：
    * 播放或下载 B 站视频直链时，客户端请求头中必须附带 `Referer: https://www.bilibili.com/`，否则会被 CDN 拦截。
+3. **云服务器/机房 IP 触发 412 (Precondition Failed) 风控拦截**：
+   * 在云服务器/数据中心（如 Docker 部署）环境下，使用 PC 浏览器（Chrome/Firefox 等）User-Agent 访问视频详情接口 `https://api.bilibili.com/x/web-interface/view` 会被 B 站 WAF 拦截并返回 `HTTP 412 Precondition Failed`。
+   * **解法**：视频详情接口单独使用非浏览器/客户端标识（如 `okhttp/4.9.3`），即可绕过该 WAF 拦截正常获取视频信息。
 
 ---
 
