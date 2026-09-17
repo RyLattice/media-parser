@@ -859,6 +859,45 @@ class DouyinParserTest(unittest.TestCase):
                 self.assertEqual(len(images), 1)
                 self.assertEqual(images[0], "https://p3.douyinpic.com/img1.jpg")
 
+    def test_cover_photo_priority_origin_over_cover_and_dynamic(self):
+        data = {
+            "aweme_detail": {
+                "desc": "封面优先级测试",
+                "video": {
+                    "origin_cover": {"url_list": ["https://p3.douyinpic.com/origin_cover.jpg"]},
+                    "cover": {"url_list": ["https://p3.douyinpic.com/normal_cover.jpg"]},
+                    "dynamic_cover": {"url_list": ["https://p3.douyinpic.com/dynamic_cover.webp"]},
+                }
+            }
+        }
+        parser = self.make_parser(data)
+        self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/origin_cover.jpg")
+
+    def test_cover_photo_fallback_to_cover_when_no_origin(self):
+        data = {
+            "aweme_detail": {
+                "desc": "无origin_cover时降级cover",
+                "video": {
+                    "cover": {"url_list": ["https://p3.douyinpic.com/normal_cover.jpg"]},
+                    "dynamic_cover": {"url_list": ["https://p3.douyinpic.com/dynamic_cover.webp"]},
+                }
+            }
+        }
+        parser = self.make_parser(data)
+        self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/normal_cover.jpg")
+
+    def test_cover_photo_fallback_to_dynamic_when_no_static(self):
+        data = {
+            "aweme_detail": {
+                "desc": "无静态封面时降级动图",
+                "video": {
+                    "dynamic_cover": {"url_list": ["https://p3.douyinpic.com/dynamic_cover.webp"]},
+                }
+            }
+        }
+        parser = self.make_parser(data)
+        self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/dynamic_cover.webp")
+
 
 if __name__ == "__main__":
     unittest.main()

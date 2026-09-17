@@ -1225,7 +1225,7 @@ class DouyinParser(BaseParser):
                     ep_info = data_dict['episode_list'][0]
                 elif not ep_info and data_dict.get('aweme_list'):
                     ep_info = data_dict['aweme_list'][0]
-                for k in ('cover_url', 'poster_url', 'dynamic_cover', 'cover'):
+                for k in ('cover_url', 'poster_url', 'origin_cover', 'cover', 'dynamic_cover'):
                     val = ep_info.get(k)
                     if isinstance(val, dict):
                         url_list = val.get('url_list') or val.get('urlList') or []
@@ -1242,13 +1242,19 @@ class DouyinParser(BaseParser):
 
             detail = data_dict.get('aweme_detail') or {}
 
-            # 1. 尝试获取视频动态封面
+            # 1. 优先获取视频静态封面（origin_cover -> cover -> dynamic_cover 兜底）
             video_cover = None
             video_data = detail.get('video') or {}
-            if video_data and 'dynamic_cover' in video_data:
-                url_list = video_data['dynamic_cover'].get('url_list') or []
-                if url_list:
-                    video_cover = url_list[0]
+            for cover_key in ('origin_cover', 'cover', 'dynamic_cover'):
+                cover_obj = video_data.get(cover_key)
+                if isinstance(cover_obj, dict):
+                    url_list = cover_obj.get('url_list') or cover_obj.get('urlList') or []
+                    if url_list:
+                        video_cover = url_list[0]
+                        break
+                elif isinstance(cover_obj, str) and cover_obj:
+                    video_cover = cover_obj
+                    break
 
             # 2. 尝试获取图集封面 (如果视频封面不存在)
             images_cover = None
