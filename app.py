@@ -49,6 +49,9 @@ def create_app(config=None):
     app.config['TRUST_PROXY_HEADERS'] = os.getenv(
         'TRUST_PROXY_HEADERS', ''
     ).strip().lower() in {'1', 'true', 'yes', 'on'}
+    app.config['API_ONLY'] = os.getenv(
+        'API_ONLY', ''
+    ).strip().lower() in {'1', 'true', 'yes', 'on'}
     if hasattr(app, 'json'):
         app.json.sort_keys = False
     if config:
@@ -60,14 +63,15 @@ def create_app(config=None):
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = _load_or_create_secret(database_dir or app.instance_path)
     init_database(app)
-    register_template_helpers(app)
 
     # 注册蓝图
     app.register_blueprint(api_bp, url_prefix='/api')
-    app.register_blueprint(web_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(portal_bp)
-    app.register_blueprint(admin_bp)
+    if not app.config.get('API_ONLY'):
+        register_template_helpers(app)
+        app.register_blueprint(web_bp)
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(portal_bp)
+        app.register_blueprint(admin_bp)
 
     if app.config.get('TRUST_PROXY_HEADERS'):
         from werkzeug.middleware.proxy_fix import ProxyFix

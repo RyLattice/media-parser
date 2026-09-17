@@ -17,7 +17,7 @@
   * 直播/回放页：`https://weibo.com/l/wblive/p/show/1022:2321325311149536575703`
   * 网页长链：`https://weibo.com/1234567890/Mabcdef`
   * 移动端带渠道后缀：`https://m.weibo.cn/7753941940/5332536008119716/qq?wm=3333_2001`
-* **Cookie 依赖**：无需登录 Cookie（内置自动生成临时 Visitor 访客会话）。
+* **Cookie 依赖**：常规内容免登录 Cookie（内置自动生成临时 Visitor 访客会话，机房 IP 或高规格视频支持配置 `WEIBO_COOKIE`）。
 
 ---
 

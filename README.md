@@ -98,49 +98,44 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 
 ## 🚀 部署指南
 
-### Cookie 与环境变量配置（按需可选，开箱即用）
+### 1. 运行模式选择
 
-本项目 95%+ 的平台**完全无需任何 Cookie 即可直接匿名解析**。如需增强特定平台（如小红书/快手防风控、视频号媒体流、豆包无水印视频等），直接复制环境变量示例文件并在 `.env` 中按需填写即可：
+系统支持两种部署形态，根据你的实际使用场景按需选择：
 
-```bash
-cp .env.example .env
-```
+| 运行模式 | 配置参数 | 适用场景 | 特性与说明 |
+| :--- | :--- | :--- | :--- |
+| **纯API / 微服务模式** | `API_ONLY=true` | 内部微服务、Bot/下载器后端、本地集成 | **开箱即用，免鉴权**：彻底关闭 Web 前后端，全接口无需 API Key 直接调用，零数据库写锁开销，适合高并发与多容器扩展。 |
+| **完整运营 / SaaS 模式** | `API_ONLY=false`（默认） | 独立自建站点、发卡运营、多用户管理 | **带 Web 前后台**：提供前台体验页、用户中心、管理后台，支持 API Key 鉴权、积分扣除与多级 QPS 限流。 |
 
-| 平台 | 环境变量 | 作用说明 |
-| :--- | :--- | :--- |
-| **视频号** | `YUANBAO_COOKIE` | 提取视频号无水印视频流与图集（依赖腾讯元宝凭据） |
-| **小红书** | `XHS_COOKIE` | 解决服务器机房 IP 遭遇的 302 登录拦截 |
-| **快手** | `KUAISHOU_COOKIE` | 应对快手偶发的反爬风控校验 |
-| **拼多多** | `PINDUODUO_COOKIE` | 提取多多视频短视频原画流 |
-| **豆包 AI** | `DOUBAO_COOKIE` | 提取 1080P 原始纯净无水印视频 |
+---
 
-> 📖 **各平台详细抓包提取教程、精简字段推荐与风控排查，请查阅 👉 [全平台 Cookie 与凭据配置指南](docs/cookie-config.md)**。
-
-### Docker 部署（推荐）
-
-通过 Docker Compose 快捷构建并启动服务：
+### 2. Docker Compose 部署（推荐）
 
 ```bash
 # 1. 获取源码
 git clone https://github.com/ucmao/media-parser.git
 cd media-parser
 
-# 2. 构建并启动服务
+# 2. （可选）配置环境变量
+cp .env.example .env
+# 若作为纯微服务运行，只需在 .env 中设置 API_ONLY=true
+
+# 3. 构建并启动服务
 docker compose up -d --build
 
-# 3. 查看日志与运行状态
+# 4. 查看日志与运行状态
 docker compose logs -f web
 ```
 
-服务默认监听 `8051` 端口，启动后直接访问 [http://localhost:8051](http://localhost:8051)。
-
-首次部署请访问 `http://localhost:8051/auth/setup` 创建管理员，该入口会在管理员创建后自动关闭。用户、API Key、系统配置和自动生成的安全密钥均保存在 `./data` 目录，请务必持久化该目录。
+**启动后的使用指引**：
+- **微服务模式 (`API_ONLY=true`)**：无需任何初始化，服务就绪后直接调用接口即可（详见下方 [API 接口](#-api-接口)）。
+- **运营模式 (`API_ONLY=false`)**：首次部署请访问 `http://localhost:8051/auth/setup` 创建管理员账号，初始化完成后入口自动关闭。数据默认持久化在 `./data` 目录。
 
 ---
 
-### Python 环境运行
+### 3. Python 本地运行
 
-适用于调试、二次开发或直接在宿主机运行。推荐 **Python 3.10+**；如需解析豆包或视频号视频，请先按上方说明配置 `.env`。
+适用于调试与二次开发，推荐 **Python 3.10+**：
 
 ```bash
 # 1. 安装依赖
@@ -154,11 +149,23 @@ python app.py
 
 ## 🔌 API 接口
 
-### 解析媒体
+### 1. 接口调用方式
 
-- **接口**：`GET /api/v1/parse`
-- **参数**：`url`，视频或图文分享链接
-- **鉴权**：`Authorization: Bearer mp-xxx`
+#### 方式 A：免鉴权直接调用（微服务模式 `API_ONLY=true`）
+无需申请或传递 API Key，直接传入分享链接即可解析，支持 GET 与 POST：
+
+```bash
+# GET 方式调用
+curl 'http://localhost:8051/api/v1/parse?url=https://v.douyin.com/xxx/'
+
+# POST JSON 方式调用
+curl -X POST 'http://localhost:8051/api/parse' \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://v.douyin.com/xxx/"}'
+```
+
+#### 方式 B：带 API Key 鉴权调用（运营模式 `API_ONLY=false`）
+需在请求头中携带有效的 API Key：
 
 ```bash
 curl --get 'http://localhost:8051/api/v1/parse' \
@@ -166,15 +173,9 @@ curl --get 'http://localhost:8051/api/v1/parse' \
   --data-urlencode 'url=https://v.douyin.com/xxx/'
 ```
 
-也支持通过 `key` 查询参数传递密钥，但生产环境不推荐，因为密钥可能被浏览器或代理日志记录：
+---
 
-```text
-http://localhost:8051/api/v1/parse?key=mp-xxx&url=https://v.douyin.com/xxx/
-```
-
-客户可在 `/console` 创建和停用 API Key；管理员可在 `/admin` 配置客户有效期、积分、QPS 与平台开关。
-
-### 返回数据
+### 2. 返回数据规范
 
 接口以 JSON 格式返回标题、正文、作者及解析出的媒体资源。部分平台可能没有独立标题、封面或主视频；为兼容已有调用方，对应字段会使用正文、首图或首视频兜底。原始正文和图集仍分别保留在 `desc`、`image_list` 中，多视频内容则通过 `video_list` 返回。
 

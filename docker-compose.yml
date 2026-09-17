@@ -23,6 +23,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-}
       - DATABASE_PATH=/app/data/media_parser.db
       - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
+      # 纯 API / 微服务模式（开启后不挂载 Web UI，全接口免 API Key 直接调用且不写请求日志）
+      - API_ONLY=${API_ONLY:-false}
       # 可选平台凭据（若在本地 .env 中配置将自动透传进容器）：
       - XHS_COOKIE=${XHS_COOKIE:-}
       - DOUYIN_COOKIE=${DOUYIN_COOKIE:-}

@@ -16,6 +16,7 @@
 | **拼多多** | `PINDUODUO_COOKIE` | `PDD_COOKIE` | 🟡 **部分依赖**：商品图集免 Cookie；多多视频短视频流解析需要 | `PDDAccessToken=xxx;` |
 | **豆包 AI** | `DOUBAO_COOKIE` | - | 🟡 **可选 (无水印)**：公开图文免 Cookie；提取 1080P 无水印视频需要 | `sessionid_ss=xxx;` |
 | **即梦 AI** | `JIMENG_COOKIE` | - | 🟡 **可选 (扩展鉴权)**：公开分享免 Cookie；私有草稿/活动页鉴权需要 | `sessionid=xxx;` |
+| **微博** | `WEIBO_COOKIE` | - | 🟡 **可选 (防访客限制)**：常规公开博文免 Cookie；机房 IP 遭遇访客拦截或解析粉丝可见内容时配置 | `SUB=xxx;` |
 | **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置 (100% 免 Cookie)**：日常短视频/图文图集免 Cookie；放映厅长片 (`/lvdetail/`) 可选滑块凭证 | `s_v_web_id=verify_xxx;` |
 
 ---
@@ -127,6 +128,14 @@ docker compose up -d
   * 普通图文与 LivePhoto 实况作品自动走 Web 详情接口与 SSR HTML 双轨路由：在家庭宽带或住宅 IP 下自动提取实况动图流，在云服务器机房 IP 遭遇风控时自动保底降级为全量无水印高清静态图片，保障服务不报错、稳定可用。
 * **放映厅长视频 / 短剧 (`/lvdetail/`)（可选）**：
   * 若需解析受限放映厅长片，可在浏览器完成人机滑块后，在 **Application -> Cookies** 中提取临时凭证 `s_v_web_id=verify_xxx;` 填入 `.env`。代码已实现路由隔离，在解析常规作品时会自动过滤掉过期滑块码，避免误触发风控。
+
+### 3.7 微博 (`WEIBO_COOKIE`)
+1. 访问 [微博网页版 (weibo.com)](https://weibo.com/) 并登录账号。
+2. 按 `F12` 打开开发者工具，在 **Application -> Cookies -> https://weibo.com** 中提取：
+   ```text
+   SUB=你的SUB值;
+   ```
+3. 填入 `.env` 中的 `WEIBO_COOKIE`（用于解决机房 IP 访客限制或提取粉丝可见博文/高码率视频）。
 
 ---
 

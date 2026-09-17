@@ -104,6 +104,8 @@ def get_client_ip():
 
 
 def authenticate_api_key():
+    if current_app and current_app.config.get("API_ONLY"):
+        return None, None
     authorization = request.headers.get("Authorization", "")
     raw_key = authorization[7:].strip() if authorization.lower().startswith("bearer ") else request.args.get("key", "").strip()
     if not raw_key:
@@ -166,7 +168,7 @@ def demo_enabled():
 
 
 def record_request(access, platform, path, status_code, error_code, duration_ms):
-    if (current_app and (current_app.testing or current_app.config.get("TESTING"))) or "unittest" in sys.modules or "pytest" in sys.modules:
+    if (current_app and (current_app.testing or current_app.config.get("TESTING") or current_app.config.get("API_ONLY"))) or "unittest" in sys.modules or "pytest" in sys.modules:
         return
     db = get_db()
     db.execute(

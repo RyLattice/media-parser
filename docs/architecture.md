@@ -186,3 +186,53 @@ class ExampleParser(BaseParser):
   "error_code": "URL_NOT_FOUND"
 }
 ```
+
+---
+
+## 🎛️ 双运行模式设计 (Dual-Mode Architecture)
+
+系统通过 `API_ONLY` 环境变量支持两种灵活的架构部署形态：
+
+```mermaid
+graph TD
+    subgraph ClientRequests["客户端请求"]
+        R1["Web 浏览器访问 (/)"]
+        R2["API 客户端 (/api/v1/parse)"]
+    end
+
+    subgraph ModeSwitch["运行模式判断 (API_ONLY)"]
+        Decision{"API_ONLY == true ?"}
+    end
+
+    subgraph FullStackMode["模式 A: 完整站长/SaaS模式 (API_ONLY=false)"]
+        WebUI["Web 前端 + 体验页 + 管理控制台"]
+        AuthSystem["API Key 鉴权 + 积分扣除 + QPS 限流"]
+        DBLogging["SQLite request_logs 日志入库"]
+    end
+
+    subgraph MicroserviceMode["模式 B: 纯解析微服务模式 (API_ONLY=true)"]
+        Headless["Web 页面彻底卸载 (404)"]
+        NoAuth["全接口免鉴权直接调用 (GET/POST)"]
+        ZeroLock["零 DB 写锁与零请求日志开销"]
+    end
+
+    subgraph ParserCore["核心解析引擎 (ParserFactory)"]
+        Parsers["50+ 平台底层逆向解析器"]
+    end
+
+    R1 --> Decision
+    R2 --> Decision
+    Decision -->|"false (默认)"| FullStackMode
+    Decision -->|"true"| MicroserviceMode
+    FullStackMode --> ParserCore
+    MicroserviceMode --> ParserCore
+```
+
+1. **标准 SaaS 运营模式 (`API_ONLY=false`)**：
+   - 挂载全部 Web 前端（首页、用户控制台 `/portal`、管理后台 `/admin`、认证 `/auth`）。
+   - 启用 API Key 鉴权、用户有效期与积分扣减、单用户/单Key QPS 桶限流，并将每次调用审计记录写入 SQLite。
+2. **纯解析微服务模式 (`API_ONLY=true`)**：
+   - 彻底关闭 Web 页面路由，专供内网或下游自动化服务（如 Telegram/微信 Bot、下载器、爬虫后端）调用。
+   - `GET /api/v1/parse` 与 `POST /api/parse` 均为完全免鉴权接口，直接传参秒级响应。
+   - 跳过积分扣减与数据库日志写库，零 SQLite 写锁竞争，极度适合高并发与 Docker 多实例水平伸缩。
+

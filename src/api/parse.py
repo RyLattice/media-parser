@@ -27,35 +27,74 @@ def health():
     return jsonify({'status': 'ok'}), 200
 
 
-@bp.route('/parse', methods=['POST'])
+@bp.route('/parse', methods=['GET', 'POST'])
 def parse():
-    """网页体验兼容接口；正式调用请使用带 API Key 的 GET /api/v1/parse。"""
+    """解析接口，网页体验或微服务调用接口。"""
     if not global_api_enabled():
         return make_response(503, 'API 服务已暂停', None, False, 'API_DISABLED'), 503
-    if not demo_enabled():
-        return make_response(403, '在线体验暂未开放', None, False, 'DEMO_DISABLED'), 403
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return make_response(400, '请求体必须是 JSON 对象', None, False, 'INVALID_REQUEST'), 400
-    if data.get('website'):
-        return make_response(400, '非法请求', None, False, 'INVALID_REQUEST'), 400
-    if not (current_app and current_app.testing):
-        client_ip = get_client_ip()
-        if not consume_rate_limit(f"demo_ip:{client_ip}", 5, window_seconds=60):
-            return make_response(429, '体验解析过于频繁，请 1 分钟后再试', None, False, 'RATE_LIMITED'), 429
-    return _execute_parse(data.get('text'), None)
+    is_api_only = bool(current_app and current_app.config.get('API_ONLY'))
+    if not is_api_only:
+        if not demo_enabled():
+            return make_response(403, '在线体验暂未开放', None, False, 'DEMO_DISABLED'), 403
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return make_response(400, '请求体必须是 JSON 对象', None, False, 'INVALID_REQUEST'), 400
+        if data.get('website'):
+            return make_response(400, '非法请求', None, False, 'INVALID_REQUEST'), 400
+        if not (current_app and current_app.testing):
+            client_ip = get_client_ip()
+            if not consume_rate_limit(f"demo_ip:{client_ip}", 5, window_seconds=60):
+                return make_response(429, '体验解析过于频繁，请 1 分钟后再试', None, False, 'RATE_LIMITED'), 429
+        return _execute_parse(data.get('text') or data.get('url'), None)
+
+    # API_ONLY 模式：完全无限制，支持 GET/POST (JSON/Form/Query)
+    text = None
+    if request.method == 'GET':
+        text = request.args.get('url') or request.args.get('text')
+    elif request.is_json:
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return make_response(400, '请求体必须是 JSON 对象', None, False, 'INVALID_REQUEST'), 400
+        if data.get('website'):
+            return make_response(400, '非法请求', None, False, 'INVALID_REQUEST'), 400
+        text = data.get('url') or data.get('text')
+    elif request.form:
+        if request.form.get('website'):
+            return make_response(400, '非法请求', None, False, 'INVALID_REQUEST'), 400
+        text = request.form.get('url') or request.form.get('text')
+    else:
+        text = request.args.get('url') or request.args.get('text')
+
+    return _execute_parse(text, None)
 
 
-@bp.route('/v1/parse', methods=['GET'])
+@bp.route('/v1/parse', methods=['GET', 'POST'])
 def simple_parse():
-    """面向客户的简单 GET 接口，支持 Bearer 请求头或 key 查询参数。"""
+    """面向客户的解析接口，支持 GET 与 POST。"""
     if not global_api_enabled():
         return make_response(503, 'API 服务已暂停', None, False, 'API_DISABLED'), 503
-    access, error = authenticate_api_key()
-    if error:
-        status, message, code = error
-        return make_response(status, message, None, False, code), status
-    return _execute_parse(request.args.get('url') or request.args.get('text'), access)
+    is_api_only = bool(current_app and current_app.config.get('API_ONLY'))
+    access = None
+    if not is_api_only:
+        access, error = authenticate_api_key()
+        if error:
+            status, message, code = error
+            return make_response(status, message, None, False, code), status
+
+    text = None
+    if request.method == 'GET':
+        text = request.args.get('url') or request.args.get('text')
+    else:
+        if request.is_json:
+            data = request.get_json(silent=True)
+            if isinstance(data, dict):
+                text = data.get('url') or data.get('text')
+        elif request.form:
+            text = request.form.get('url') or request.form.get('text')
+        if not text:
+            text = request.args.get('url') or request.args.get('text')
+
+    return _execute_parse(text, access)
 
 
 def _execute_parse(text, access):

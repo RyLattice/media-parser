@@ -11,7 +11,7 @@
 * **字符编码**：`UTF-8`
 
 ### 1.1 鉴权方式 (API Key)
-服务在开启鉴权时，支持以下两种传参方式：
+在标准模式下（`API_ONLY=false`），接口需要鉴权，支持以下两种传参方式：
 1. **HTTP 请求头 (推荐)**：
    ```http
    Authorization: Bearer YOUR_API_KEY
@@ -20,6 +20,8 @@
    ```http
    POST /api/v1/parse?key=YOUR_API_KEY
    ```
+
+> 💡 **微服务模式说明**：若配置了环境变量 `API_ONLY=true`，系统将作为纯解析引擎运行，`/api/v1/parse` 与 `/api/parse` 自动变为完全免鉴权接口，无需传入任何 API Key，亦不记录数据库请求日志。
 
 ---
 
