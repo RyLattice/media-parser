@@ -4627,6 +4627,20 @@
       ],
       "note": "2026-09-14 已验证: 微博移动端带渠道后缀视频博文",
       "pattern": "移动端渠道后缀博文"
+    },
+    {
+      "platform": "微博",
+      "url": "https://weibo.com/6288169783/5344438765488239",
+      "media_types": [
+        "images"
+      ],
+      "expected_fields": [
+        "images",
+        "title",
+        "author"
+      ],
+      "note": "2026-09-18 已验证: 微博 Live Photo 实况图文博文",
+      "pattern": "微博 Live Photo 实况博文"
     }
   ]
 }

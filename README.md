@@ -76,7 +76,7 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **新片场** | ✓ | ✓ |  | ✓ | ✓ |  | ✓ |  |  |  | [查看](docs/parsers/xinpianchang.md) |
 | **好看视频** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/haokan.md) |
 | **梨视频** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/lishipin.md) |
-| **微博** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/weibo.md) |
+| **微博** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  | [查看](docs/parsers/weibo.md) |
 | **知乎** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/zhihu.md) |
 | **虎牙** |   | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/huya.md) |
 | **美拍** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/meipai.md) |
