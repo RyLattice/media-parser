@@ -69,7 +69,7 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **微视** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/weishi.md) |
 | **AcFun** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/acfun.md) |
 | **西瓜视频** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/xigua.md) |
-| **今日头条** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/toutiao.md) |
+| **今日头条** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/toutiao.md) |
 | **绿洲** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/lvzhou.md) |
 | **皮皮虾** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/pipixia.md) |
 | **全民K歌** |   | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/quanminkge.md) |
@@ -130,8 +130,8 @@ docker compose logs -f web
 ```
 
 **启动后的使用指引**：
-- **微服务模式 (`API_ONLY=true`)**：无需任何初始化，服务就绪后直接调用接口即可。
-- **运营模式 (`API_ONLY=false`)**：首次部署请访问 `http://localhost:8051/auth/setup` 创建管理员账号，初始化完成后入口自动关闭。数据默认持久化在 `./data` 目录。
+- **微服务模式**：无需任何初始化，服务就绪后直接调用接口即可。
+- **运营模式**：首次部署请访问 `http://localhost:8051/auth/setup` 创建管理员账号，初始化完成后入口自动关闭。数据默认持久化在 `./data` 目录。
 
 ---
 
@@ -153,21 +153,22 @@ python app.py
 
 ### 1. 接口调用方式
 
-#### 方式 A：免鉴权直接调用（微服务模式 `API_ONLY=true`）
+#### 方式 A：免鉴权调用（微服务模式）
 无需申请或传递 API Key，直接传入分享链接即可解析：
 
 ```bash
 curl 'http://localhost:8051/api/v1/parse?url=https://v.douyin.com/xxx/'
 ```
 
-#### 方式 B：带 API Key 鉴权调用（运营模式 `API_ONLY=false`）
+#### 方式 B：API Key 鉴权调用（运营模式）
 在 URL 参数中附带后台生成的 API Key 即可调用：
 
 ```bash
 curl 'http://localhost:8051/api/v1/parse?key=mp-xxx&url=https://v.douyin.com/xxx/'
 ```
 
-> **提示**：接口同样完整支持 `POST` 请求（支持 JSON / Form 表单）及 `Authorization: Bearer <API_KEY>` 请求头鉴权，详细协议见 [📖 API接口规范](docs/api.md)。
+> **提示**：接口同样完整支持 `POST` 请求（支持 JSON / Form 表单）及 `Authorization: Bearer <API_KEY>` 请求头鉴权，详细协议见 [📖 API接口与协议规范
+](docs/api.md)。
 
 ---
 
@@ -224,7 +225,7 @@ curl 'http://localhost:8051/api/v1/parse?key=mp-xxx&url=https://v.douyin.com/xxx
 
 默认响应还会附带可由管理员配置或关闭的 `_tip` 服务信息字段。
 
-> **接口说明**：标准对接建议统一使用 `/api/v1/parse`。在运营模式（`API_ONLY=false`）下，`/api/parse` 仅供网站首页在线体验（受 IP 频控限制）；在微服务模式（`API_ONLY=true`）下，`/api/v1/parse` 与 `/api/parse` 均为完全免鉴权的解析接口。各字段语义与兼容兜底规则详见 [📖 API接口规范](docs/api.md)。
+> **接口说明**：标准对接建议统一使用 `/api/v1/parse`。在运营模式下，`/api/parse` 仅供网站首页在线体验（受 IP 频控限制）；在微服务模式下，`/api/v1/parse` 与 `/api/parse` 均为完全免鉴权的解析接口。
 
 ---
 
