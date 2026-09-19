@@ -65,7 +65,7 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **腾讯频道** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/tencent-channel.md) |
 | **剪映 / CapCut** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  | [查看](docs/parsers/jianying.md) |
 | **快影** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  | ✓ |  | [查看](docs/parsers/kwaiying.md) |
-| **皮皮搞笑** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/pipigaoxiao.md) |
+| **皮皮搞笑** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/pipigaoxiao.md) |
 | **微视** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/weishi.md) |
 | **AcFun** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/acfun.md) |
 | **西瓜视频** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/xigua.md) |
@@ -91,9 +91,9 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **央视频** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/yangshipin.md) |
 
 <sub>注：带 `*` 的项表示该素材保留官方原生水印，未带 `*` 的项均为纯净无水印素材。</sub>
-> **Cookie 凭据配置**：绝大多数平台支持免登录匿名解析；如需配置小红书、视频号等平台凭证，可参考 [`.env.example`](.env.example)，详细方法见 [📖 全平台Cookie配置指南](docs/cookie-config.md)。
+> **Cookie凭据配置**：绝大多数平台支持免登录匿名解析；如需配置小红书、视频号等平台凭证，可参考 [`.env.example`](.env.example)，详细方法见 [📖 平台Cookie配置指南](docs/cookie-config.md)。
 >
-> **平台逆向与抓包 SOP**：各平台详细技术分析与抓包规范，请查阅 [📖 平台逆向指南索引](docs/index.md) 与 [📖 通用逆向方法论](docs/reverse-guide.md)。
+> **逆向与抓包SOP**：各平台详细技术分析与抓包规范，请查阅 [📖 平台逆向指南索引](docs/index.md) 与 [📖 通用逆向方法论](docs/reverse-guide.md)。
 
 ---
 
@@ -105,8 +105,8 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 
 | 运行模式 | 配置参数 | 适用场景 | 特性与说明 |
 | :--- | :--- | :--- | :--- |
-| **纯API微服务模式** | `API_ONLY=true` | 内部微服务、Bot/下载器后端、本地集成 | **开箱即用，免鉴权**：彻底关闭 Web 前后端，全接口无需 API Key 直接调用，零数据库写锁开销，适合高并发与多容器扩展。 |
-| **完整运营SaaS模式** | `API_ONLY=false`（默认） | 独立自建站点、发卡运营、多用户管理 | **带 Web 前后台**：提供前台体验页、用户中心、管理后台，支持 API Key 鉴权、积分扣除与多级 QPS 限流。 |
+| **纯API微服务模式** | `API_ONLY=true` | 内部微服务、Bot/下载器后端、本地集成 | **开箱即用，免鉴权**：彻底关闭Web前后端，全接口无需API Key直接调用，零数据库开销，适合高并发与多容器扩展。 |
+| **完整运营SaaS模式** | `API_ONLY=false`（默认） | 独立自建站点、发卡运营、多用户管理 | **带Web前后台**：提供前台体验页、用户中心、管理后台，支持API Key鉴权、积分扣除与多级QPS限流。 |
 
 ---
 
@@ -241,7 +241,7 @@ python3 tests/manual_verify_parsers.py --limit 1
 python3 tests/manual_verify_parsers.py --platform "小云雀AI"
 ```
 
-> **了解 Pytest 单元测试规范、Mock 机制与回归测试体系，请查阅 [📖 测试体系与回归验证](docs/testing.md)**。
+> 更多单测规范与 Mock 机制，请查阅 [📖 测试体系与回归验证](docs/testing.md)。
 
 ---
 

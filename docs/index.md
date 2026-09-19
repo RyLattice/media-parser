@@ -46,7 +46,7 @@
 | 13 | **微博** | 视频 / 直播回放 / 微博正文 / 多图 | ✅ 支持 | 🟢 免配置 (可选 Cookie 防风控) | 移动端 H5 接口 + 直播组件 + Base62 解码 | [查看指南](parsers/weibo.md) |
 | 14 | **知乎** | 视频 (Video Pin) / 想法 / 问答 | ✅ 支持 | 🟢 免配置 | Web API 多路由正则提取 | [查看指南](parsers/zhihu.md) |
 | 15 | **皮皮虾** | 视频 / 图文 | ✅ 支持 | 🟢 免配置 | H5 接口数据解析 | [查看指南](parsers/pipixia.md) |
-| 16 | **皮皮搞笑** | 视频 | ✅ 支持 | 🟢 免配置 | H5 页面 JSON 提取 | [查看指南](parsers/pipigaoxiao.md) |
+| 16 | **皮皮搞笑** | 视频 / 图集 | ✅ 支持 | 🟢 免配置 | H5 分享接口解析 | [查看指南](parsers/pipigaoxiao.md) |
 | 17 | **最右** | 视频 / 图集 | ✅ 支持 | 🟢 免配置 | H5 接口键值映射提取 | [查看指南](parsers/zuiyou.md) |
 | 18 | **AcFun** | 视频 (m3u8/MP4) | ✅ 支持 | 🟢 免配置 | KSPlayer 播放器参数还原 | [查看指南](parsers/acfun.md) |
 | 19 | **汽水音乐** | UGC 视频 / 背景原声 | ✅ 支持 | 🟢 免配置 | 字节系分享 API | [查看指南](parsers/qsmusic.md) |
