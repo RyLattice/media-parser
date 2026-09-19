@@ -581,6 +581,20 @@
       "pattern": "基础标准样例"
     },
     {
+      "platform": "皮皮搞笑",
+      "url": "https://h5.ippzone.com/spacey/post/897800342766?pid=897800342766&type=post",
+      "media_types": [
+        "images"
+      ],
+      "expected_fields": [
+        "images",
+        "cover",
+        "author"
+      ],
+      "note": "2026-09-19 用户反馈修复: 空间/新版分享页 8 图图集",
+      "pattern": "spacey 图集"
+    },
+    {
       "platform": "皮皮虾",
       "url": "https://h5.pipix.com/s/lggjR-ynbpI/",
       "media_types": [
