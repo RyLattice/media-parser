@@ -1,0 +1,42 @@
+# ============================================================
+# Media Parser · Render 免费云部署蓝图（Blueprint）
+# 作者：ucmao/media-parser  部署方式：纯 API 微服务（API_ONLY）
+# ============================================================
+#
+# 【这是什么】
+#   Render 的 Blueprint 文件。把它放进你的 fork 仓库根目录，
+#   在 Render 控制台用 "New" → "Blueprint" 导入，即可一键创建服务。
+#   也可以手动 New Web Service 连仓库，Render 会自动读取本文件。
+#
+# 【我已经帮你处理好的关键点】
+#   1. 端口：覆盖 Dockerfile 里写死的 8051，改绑 Render 注入的 $PORT
+#   2. 模式：API_ONLY=true 纯解析微服务（免 API Key、不写数据库），
+#      最贴合免费层（512MB 内存、临时磁盘不影响）
+#   3. 健康检查：项目自带 /api/health 端点
+#
+# 【你部署后仍需在 Render 控制台做的事】
+#   - 各平台 Cookie 是可选的，遇到风控链接再回来加（见部署指南）
+# ============================================================
+
+services:
+  - type: web
+    name: media-parser
+    runtime: docker
+    branch: main
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    # 覆盖 Dockerfile 的 CMD，绑定 Render 注入的动态端口 $PORT
+    startCommand: gunicorn --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: API_ONLY
+        value: "true"            # 纯解析微服务：免 API Key、不写请求日志
+      - key: TRUST_PROXY_HEADERS
+        value: "true"            # Render 前置反向代理/CDN，启用以正确识别协议
+      - key: TZ
+        value: Asia/Shanghai
+      # ===== 以下为可选平台 Cookie（保持为空即可匿名解析大部分平台）=====
+      # 遇到特定平台风控/需登录的链接时，在 Render 控制台 Environment 里
+      # 新增对应变量并填入你自己的 Cookie 值即可，无需改本文件：
+      #   XHS_COOKIE / DOUYIN_COOKIE / DOUBAO_COOKIE / JIMENG_COOKIE / WEIBO_COOKIE
+      #   KUAISHOU_COOKIE / PINDUODUO_COOKIE / YUANBAO_COOKIE
