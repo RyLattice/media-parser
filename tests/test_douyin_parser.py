@@ -898,6 +898,90 @@ class DouyinParserTest(unittest.TestCase):
         parser = self.make_parser(data)
         self.assertEqual(parser.get_cover_photo_url(), "https://p3.douyinpic.com/dynamic_cover.webp")
 
+    def test_image_post_info_and_live_photo_uri_extraction(self):
+        """测试现代 image_post_info 结构与 Live Photo 从 video.play_addr.uri 自动构造播放端点"""
+        data = {
+            "aweme_detail": {
+                "desc": "新版实况图集测试",
+                "image_post_info": {
+                    "images": [
+                        {
+                            "url_list": [
+                                "https://p1.douyinpic.com/thumb.jpg",
+                                "https://p3.douyinpic.com/origin.jpg"
+                            ],
+                            "video": {
+                                "play_addr": {
+                                    "uri": "v0200fg10000abc12345"
+                                }
+                            }
+                        },
+                        {
+                            "display_image": {
+                                "url_list": ["https://p3.douyinpic.com/static.jpg"]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        parser = self.make_parser(data)
+        images = parser.get_image_list()
+        self.assertEqual(len(images), 2)
+        # 第一张为实况图，包含 url 和 live_photo_url
+        self.assertIsInstance(images[0], dict)
+        self.assertEqual(images[0]['url'], "https://p3.douyinpic.com/origin.jpg")
+        self.assertIn("v0200fg10000abc12345", images[0]['live_photo_url'])
+        self.assertIn("ratio=1080p", images[0]['live_photo_url'])
+        # 第二张为普通图片
+        self.assertEqual(images[1], "https://p3.douyinpic.com/static.jpg")
+
+    def test_video_download_addr_original_endpoint_and_multi_metric_selection(self):
+        """测试无 bit_rate 时从 download_addr 提取原画端点，以及多分辨率综合仲裁"""
+        data_orig = {
+            "aweme_detail": {
+                "desc": "原画端点测试",
+                "video": {
+                    "download_addr": {
+                        "uri": "v0300fg10000xyz7890"
+                    }
+                }
+            }
+        }
+        parser_orig = self.make_parser(data_orig)
+        url = parser_orig.get_real_video_url()
+        self.assertIsNotNone(url)
+        self.assertIn("v0300fg10000xyz7890", url)
+        self.assertIn("ratio=default", url)
+
+        # 测试在 bit_rate 中按 分辨率(宽*高) 与码率 综合仲裁
+        data_streams = {
+            "aweme_detail": {
+                "desc": "画质多维度仲裁",
+                "video": {
+                    "bit_rate": [
+                        {
+                            "bit_rate": 1500000,
+                            "is_h265": 0,
+                            "width": 1280,
+                            "height": 720,
+                            "play_addr": {"url_list": ["http://cdn.douyin.com/720p.mp4"]}
+                        },
+                        {
+                            "bit_rate": 1200000,
+                            "is_h265": 0,
+                            "width": 1920,
+                            "height": 1080,  # 分辨率更高
+                            "play_addr": {"url_list": ["http://cdn.douyin.com/1080p.mp4"]}
+                        }
+                    ]
+                }
+            }
+        }
+        parser_stream = self.make_parser(data_streams)
+        # 应当优选 1080p 分辨率流（像素数 1920*1080 > 1280*720）
+        self.assertEqual(parser_stream.get_real_video_url(), "http://cdn.douyin.com/1080p.mp4")
+
 
 if __name__ == "__main__":
     unittest.main()

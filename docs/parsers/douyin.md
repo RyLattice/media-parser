@@ -192,6 +192,21 @@ abogus = signer.get_abogus(play_url, signer.user_agent)
   1. **画质与裁剪**：`origin_cover` 是创作者选定的原始封面帧，画质最高且未经系统裁剪压缩；
   2. **兼容性与性能**：`dynamic_cover` 是带动画的 WebP 动图（通常 300KB~2MB），若直接作为缩略图会导致部分客户端/Web 控件持续循环解码闪烁，优先静态原封面可将体积压缩 80% 以上并杜绝动图闪烁。
 
+### 4.7 图文与 LivePhoto 实况照片全字段兼容
+* **图集多源结构扫描**：
+  * 全面兼容抖音新旧版返回结构：优先扫描 `image_post_info.images` / `image_post_info.image_list`（现代 Web 端新版图集），随后兜底 `images`、`image_list`、`image_infos`、`original_images`；
+* **实况动轨（Live Photo）提取与端点构造**：
+  * 对图集内每个元素，递归扫描 `video`、`video_play_addr`、`video_download_addr`；
+  * 若仅返回 `uri`，自动构造 1080p 无水印播放端点（`iesdouyin.com/aweme/v1/play/?video_id={uri}&ratio=1080p`），支持 `play_addr_h264`、`play_addr_lowbr`、`download_addr` 等备用字段；
+  * 输出格式保持向下兼容：普通图片为 `str`，实况图为 `{'url': ..., 'live_photo_url': ...}`。
+
+### 4.8 画质多维度仲裁与原画（download_addr）支持
+* **原画源文件端点支持**：
+  * 提取 `video.download_addr.uri`，构造 `ratio=default` 无水印原画端点，在缺失 `bit_rate` 码率流时优先输出创作者上传的原画片源；
+* **多维度流仲裁器**：
+  * 在 `bit_rate` 列表中综合评估：$\text{分辨率像素数 (Width} \times \text{Height)} \rightarrow \text{码率 (bit\_rate)} \rightarrow \text{文件体积 (data\_size)} \rightarrow \text{质量类型} \rightarrow \text{直链优先级}$；
+  * 优先筛选兼容性最好的 H.264 编码最高画质流，杜绝 Web/移动端跨平台播放黑屏。
+
 ---
 
 ## 5. 常见踩坑记录与风控解法 (Gotchas)
