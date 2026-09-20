@@ -88,7 +88,7 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **网易LOFTER** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/lofter.md) |
 | **星绘AI** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/butterflyai.md) |
 | **央视** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  | [查看](docs/parsers/cctv.md) |
-| **央视频** | ✓ | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  | [查看](docs/parsers/yangshipin.md) |
+| **央视频** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | [查看](docs/parsers/yangshipin.md) |
 
 <sub>注：带 `*` 的项表示该素材保留官方原生水印，未带 `*` 的项均为纯净无水印素材。</sub>
 > **Cookie凭据配置**：绝大多数平台支持免登录匿名解析；如需配置小红书、视频号等平台凭证，可参考 [`.env.example`](.env.example)，详细方法见 [📖 平台Cookie配置指南](docs/cookie-config.md)。

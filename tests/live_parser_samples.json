@@ -4572,6 +4572,21 @@
       "pattern": "微视频及短剧详情"
     },
     {
+      "platform": "央视频",
+      "url": "https://www.yspapp.cn/6j3j",
+      "media_types": [
+        "images"
+      ],
+      "expected_fields": [
+        "cover",
+        "title",
+        "images",
+        "author"
+      ],
+      "note": "2026-09-20 已验证: 央视频图文资讯与新闻文章",
+      "pattern": "图文资讯与文章详情"
+    },
+    {
       "platform": "豆包",
       "url": "https://www.doubao.com/music-sharing?vid=v02292g10006dadu4kq7dld48hgk0dn0&share_id=55311664453668866",
       "media_types": [
