@@ -17,7 +17,7 @@
 | **豆包 AI** | `DOUBAO_COOKIE` | - | 🟡 **可选 (无水印)**：公开图文免 Cookie；提取 1080P 无水印视频需要 | `sessionid_ss=xxx;` |
 | **即梦 AI** | `JIMENG_COOKIE` | - | 🟡 **可选 (扩展鉴权)**：公开分享免 Cookie；私有草稿/活动页鉴权需要 | `sessionid=xxx;` |
 | **微博** | `WEIBO_COOKIE` | - | 🟡 **可选 (防访客限制)**：常规公开博文免 Cookie；机房 IP 遭遇访客拦截或解析粉丝可见内容时配置 | `SUB=xxx;` |
-| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置 (100% 免 Cookie)**：日常短视频/图文图集免 Cookie；放映厅长片 (`/lvdetail/`) 可选滑块凭证 | `s_v_web_id=verify_xxx;` |
+| **抖音** | `DOUYIN_COOKIE` | - | 🟢 **免配置 (100% 免 Cookie)**：日常短视频/图文图集免 Cookie；云服务器提取 LivePhoto 实况动图流或放映厅长片可选 | `UIFID=xxx; passport_csrf_token=xxx;` |
 
 ---
 
@@ -121,13 +121,17 @@ docker compose up -d
 3. 填入 `.env` 中的 `DOUBAO_COOKIE`。
 
 ### 3.6 抖音 (`DOUYIN_COOKIE`)
-> **核心原则**：常规短视频、图集、LivePhoto、原声音乐等 **100% 免配置 Cookie 即可解析**。
+> **核心原则**：常规短视频、图文图集、原声音乐等 **100% 免配置 Cookie 即可毫秒级直出**。
 
-* **常规作品解析**：
-  * 常规短视频直连移动端 Feed 免 Argus 门禁通道，毫秒级直出；
-  * 普通图文与 LivePhoto 实况作品自动走 Web 详情接口与 SSR HTML 双轨路由：在家庭宽带或住宅 IP 下自动提取实况动图流，在云服务器机房 IP 遭遇风控时自动保底降级为全量无水印高清静态图片，保障服务不报错、稳定可用。
+* **常规短视频解析**：
+  * 常规短视频直连移动端 Feed 免 Argus 门禁通道，完全无需 Cookie、无需签名、零 403 毫秒级直出。
+* **LivePhoto 实况动图流（云服务器提取）**：
+  * 抖音 LivePhoto 实况动图（MP4 视频流）仅由 Web Detail API 下发；
+  * 解析器会自动从 `DOUYIN_COOKIE` 中提取 `UIFID` 并注入 HTTP 请求头 `uifid: <value>`，突破 Argus 网关 403 阻断；
+  * 若需在云服务器（机房 IP）提取实况视频流，建议填入浏览器已登录账号的完整 Cookie（含 `UIFID=...; passport_csrf_token=...;`）；
+  * 若未配置 Cookie 或匿名访问被风控拦截，系统会在 `<0.5s` 内极速降级为移动端分享页 SSR 兜底提取全量静态无水印原图，确保接口稳定不报错。
 * **放映厅长视频 / 短剧 (`/lvdetail/`)（可选）**：
-  * 若需解析受限放映厅长片，可在浏览器完成人机滑块后，在 **Application -> Cookies** 中提取临时凭证 `s_v_web_id=verify_xxx;` 填入 `.env`。代码已实现路由隔离，在解析常规作品时会自动过滤掉过期滑块码，避免误触发风控。
+  * 若需解析受限放映厅长片，可在浏览器完成人机滑块后，在 **Application -> Cookies** 中提取凭证填入 `.env`。代码已实现路由隔离，在解析常规作品时会自动过滤掉过期滑块码。
 
 ### 3.7 微博 (`WEIBO_COOKIE`)
 1. 访问 [微博网页版 (weibo.com)](https://weibo.com/) 并登录账号。

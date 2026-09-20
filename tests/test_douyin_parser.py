@@ -982,7 +982,33 @@ class DouyinParserTest(unittest.TestCase):
         # 应当优选 1080p 分辨率流（像素数 1920*1080 > 1280*720）
         self.assertEqual(parser_stream.get_real_video_url(), "http://cdn.douyin.com/1080p.mp4")
 
+    def test_uifid_extracted_and_header_injected(self):
+        """测试从 Cookie 中自动提取 UIFID 并注入到 uifid 请求头"""
+        parser = self.make_parser({})
+        parser.cookie = "odin_tt=123; UIFID=deadbeef123456; ttwid=abc"
+        self.assertEqual(parser._get_uifid(), "deadbeef123456")
+
+        # 验证 _request_api_with_retry 发送时携带了 uifid header
+        with patch.object(parser.session, "get") as mock_get:
+            mock_resp = Mock()
+            mock_resp.status_code = 200
+            mock_resp.text = json.dumps({"aweme_detail": {"desc": "test"}})
+            mock_resp.json.return_value = {"aweme_detail": {"desc": "test"}}
+            mock_get.return_value = mock_resp
+
+            parser._request_api_with_retry("https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=123",
+                                           referer="https://www.douyin.com/note/123",
+                                           validate=lambda d: bool(d.get("aweme_detail")))
+            self.assertTrue(mock_get.called)
+            call_headers = mock_get.call_args[1]["headers"]
+            self.assertEqual(call_headers.get("uifid"), "deadbeef123456")
+
+    def test_default_api_max_attempts_is_two(self):
+        """测试 Web 接口重试次数默认降为 2 次，避免长时间阻塞"""
+        self.assertEqual(douyin_module.API_MAX_ATTEMPTS, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

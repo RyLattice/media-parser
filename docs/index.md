@@ -110,8 +110,8 @@ YUANBAO_COOKIE="hy_user=xxx; hy_token=yyy;"
 # 3. 小红书防风控 / 高频解析 (可选，解决服务器 IP 遭遇的 302 登录拦截)
 XHS_COOKIE="a1=xxx; webId=yyy; web_session=zzz;"
 
-# 4. 抖音放映厅长视频 (可选，仅在解析 /lvdetail/ 长片时需要)
-DOUYIN_COOKIE="s_v_web_id=verify_xxx; __ac_nonce=xxx;"
+# 4. 抖音 LivePhoto 实况流 / 放映厅 (可选，常规短视频免 Cookie 毫秒级直出；云端提取实况动图流可填入含 UIFID 的 Cookie)
+DOUYIN_COOKIE="UIFID=xxx; passport_csrf_token=yyy;"
 
 # 5. 拼多多多多视频 (可选，用于多多短视频信息流原画解析)
 PINDUODUO_COOKIE="PDDAccessToken=xxx;"

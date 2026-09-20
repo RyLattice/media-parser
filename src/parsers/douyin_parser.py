@@ -44,7 +44,7 @@ def _get_env_float(key, default):
         return default
 
 
-API_MAX_ATTEMPTS = max(1, _get_env_int("DOUYIN_API_MAX_ATTEMPTS", 8))
+API_MAX_ATTEMPTS = max(1, _get_env_int("DOUYIN_API_MAX_ATTEMPTS", 2))
 # 请求过密会额外触发速率型拦截，重试之间使用紧凑的指数退避 + 随机抖动（单次上限 0.8s，避免图文重试总耗时过长）。
 RETRY_BASE_DELAY = _get_env_float("DOUYIN_RETRY_BASE_DELAY", 0.2)
 RETRY_MAX_DELAY = _get_env_float("DOUYIN_RETRY_MAX_DELAY", 0.8)
@@ -124,6 +124,9 @@ class DouyinParser(BaseParser):
         headers = copy.deepcopy(self.headers)
         ttwid = self._get_ttwid()
         headers['Cookie'] = self._get_cookie_header(ttwid)
+        uifid = self._get_uifid()
+        if uifid:
+            headers['uifid'] = uifid
         if use_mobile_ua:
             # 与站点旧 VideoService 一致：分享页对移动 UA 更友好
             headers['User-Agent'] = (
@@ -183,6 +186,22 @@ class DouyinParser(BaseParser):
                 parts.append(f"{name}={value}")
                 seen.add(name)
         return '; '.join(parts)
+
+    def _get_uifid(self):
+        """
+        从 Cookie 中提取 UIFID 字段，用于作为独立 HTTP 请求头 (uifid: <value>) 发送给 Argus 网关。
+        """
+        if self.cookie:
+            for item in self.cookie.split(';'):
+                if '=' not in item:
+                    continue
+                k, v = item.split('=', 1)
+                if k.strip() == 'UIFID' and v.strip():
+                    return v.strip()
+        value = next((c.value for c in self.session.cookies
+                      if c.name == 'UIFID' and not c.is_expired()
+                      and c.domain in ('', 'douyin.com', '.douyin.com', 'www.douyin.com')), None)
+        return value or ""
 
     def _get_ttwid(self):
         """
@@ -266,6 +285,9 @@ class DouyinParser(BaseParser):
             headers = copy.deepcopy(self.headers)
             headers['Referer'] = referer
             headers['Cookie'] = self._get_cookie_header(ttwid)
+            uifid = self._get_uifid()
+            if uifid:
+                headers['uifid'] = uifid
 
             api_url = f"{base_api}&msToken={self.signer.get_ms_token()}"
             try:
