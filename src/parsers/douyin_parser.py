@@ -165,6 +165,9 @@ class DouyinParser(BaseParser):
                 v = v.strip()
                 if k in ('__ac_nonce', '__ac_signature'):
                     continue
+                # 过滤触发 SecSDK 强校验的动态票据与防护指纹，防止 Argus 网关因缺少客户端动态签名报 403 Signature Not Found
+                if k.startswith(('bd_ticket_guard', '__security', 'fpk')) or k in ('_bd_ticket_crypt_cookie', 'x_tt_token', 'sdk_source_info'):
+                    continue
                 # verify_ 开头的临时验证码通行证仅在放映厅 lvdetail 中使用，常规作品携带过期验证码会导致 403
                 if k == 's_v_web_id' and v.startswith('verify_') and not getattr(self, 'is_lvdetail', False):
                     continue
@@ -196,10 +199,10 @@ class DouyinParser(BaseParser):
                 if '=' not in item:
                     continue
                 k, v = item.split('=', 1)
-                if k.strip() == 'UIFID' and v.strip():
+                if k.strip().upper() == 'UIFID' and v.strip():
                     return v.strip()
         value = next((c.value for c in self.session.cookies
-                      if c.name == 'UIFID' and not c.is_expired()
+                      if c.name.upper() == 'UIFID' and not c.is_expired()
                       and c.domain in ('', 'douyin.com', '.douyin.com', 'www.douyin.com')), None)
         return value or ""
 

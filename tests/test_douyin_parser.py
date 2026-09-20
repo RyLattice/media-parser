@@ -1007,6 +1007,28 @@ class DouyinParserTest(unittest.TestCase):
         """测试 Web 接口重试次数默认降为 2 次，避免长时间阻塞"""
         self.assertEqual(douyin_module.API_MAX_ATTEMPTS, 2)
 
+    def test_secsdk_cookies_sanitized_in_cookie_header(self):
+        """测试自动过滤导致 Argus 报 Signature Not Found 403 的 SecSDK 指纹和票据 Cookie"""
+        parser = self.make_parser({})
+        parser.cookie = (
+            "sessionid=my_sess; sessionid_ss=my_sess; UIFID=my_uifid; "
+            "bd_ticket_guard_client_data=toxic; _bd_ticket_crypt_cookie=toxic; "
+            "__security_mc_1_s_sdk_cert_key=toxic; fpk1=toxic; fpk2=toxic; "
+            "x_tt_token=toxic; sdk_source_info=toxic; odin_tt=safe_odin"
+        )
+        cookie_header = parser._get_cookie_header(ttwid="test_ttwid")
+        self.assertIn("sessionid=my_sess", cookie_header)
+        self.assertIn("UIFID=my_uifid", cookie_header)
+        self.assertIn("odin_tt=safe_odin", cookie_header)
+        self.assertIn("ttwid=test_ttwid", cookie_header)
+        # 验证危险 SecSDK 字段均被彻底过滤
+        self.assertNotIn("bd_ticket_guard", cookie_header)
+        self.assertNotIn("_bd_ticket_crypt_cookie", cookie_header)
+        self.assertNotIn("__security", cookie_header)
+        self.assertNotIn("fpk", cookie_header)
+        self.assertNotIn("x_tt_token", cookie_header)
+        self.assertNotIn("sdk_source_info", cookie_header)
+
 
 if __name__ == "__main__":
     unittest.main()
