@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 import urllib.parse
 from unittest.mock import Mock, patch
@@ -983,12 +984,21 @@ class DouyinParserTest(unittest.TestCase):
         self.assertEqual(parser_stream.get_real_video_url(), "http://cdn.douyin.com/1080p.mp4")
 
     def test_uifid_extracted_and_header_injected(self):
-        """测试从 Cookie 中自动提取 UIFID 并注入到 uifid 请求头"""
+        """测试从 Cookie、纯 hash 或独立环境变量中自动提取 UIFID 并注入到 uifid 请求头"""
         parser = self.make_parser({})
         parser.cookie = "odin_tt=123; UIFID=deadbeef123456; ttwid=abc"
         self.assertEqual(parser._get_uifid(), "deadbeef123456")
 
+        # 验证直接传入纯 hex 字符串作为 cookie 也能被识别为 uifid
+        parser.cookie = "ccaf4ddfc567c2ea7983832ca74975440c9b4528762c7e101401412a981d7e99"
+        self.assertEqual(parser._get_uifid(), "ccaf4ddfc567c2ea7983832ca74975440c9b4528762c7e101401412a981d7e99")
+
+        # 验证独立环境变量 DOUYIN_UIFID
+        with patch.dict(os.environ, {"DOUYIN_UIFID": "env_uifid_value_123456"}):
+            self.assertEqual(parser._get_uifid(), "env_uifid_value_123456")
+
         # 验证 _request_api_with_retry 发送时携带了 uifid header
+        parser.cookie = "UIFID=deadbeef123456"
         with patch.object(parser.session, "get") as mock_get:
             mock_resp = Mock()
             mock_resp.status_code = 200
@@ -1028,6 +1038,18 @@ class DouyinParserTest(unittest.TestCase):
         self.assertNotIn("fpk", cookie_header)
         self.assertNotIn("x_tt_token", cookie_header)
         self.assertNotIn("sdk_source_info", cookie_header)
+
+    def test_sign_secsdk_calculation(self):
+        """测试 x-secsdk-web-signature 签名纯算与参数规范化"""
+        uifid = "deadbeef123456"
+        ts = 1789880000
+        url = "https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=123"
+        signed_url = DouyinParser._sign_secsdk(url, uifid, ts=ts)
+        self.assertIn("uifid=deadbeef123456", signed_url)
+        self.assertIn(f"timestamp={ts}", signed_url)
+        self.assertIn("x-secsdk-web-signature=", signed_url)
+        # 验证空 uifid 时原样返回
+        self.assertEqual(DouyinParser._sign_secsdk(url, ""), url)
 
 
 if __name__ == "__main__":

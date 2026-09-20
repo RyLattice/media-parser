@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import os
 import random
@@ -161,8 +162,8 @@ class DouyinParser(BaseParser):
                 if '=' not in item:
                     continue
                 k, v = item.split('=', 1)
-                k = k.strip()
-                v = v.strip()
+                k = k.strip().strip("'\"")
+                v = v.strip().strip("'\"")
                 if k in ('__ac_nonce', '__ac_signature'):
                     continue
                 # 过滤触发 SecSDK 强校验的动态票据与防护指纹，防止 Argus 网关因缺少客户端动态签名报 403 Signature Not Found
@@ -192,19 +193,77 @@ class DouyinParser(BaseParser):
 
     def _get_uifid(self):
         """
-        从 Cookie 中提取 UIFID 字段，用于作为独立 HTTP 请求头 (uifid: <value>) 发送给 Argus 网关。
+        获取 UIFID 字段，用于计算 x-secsdk-web-signature 及作为独立 HTTP 请求头 (uifid: <value>) 发送给 Argus 网关。
+        支持场景：
+        1. 独立环境变量 DOUYIN_UIFID / DY_UIFID
+        2. 从 Cookie 字符串中解析 UIFID=...
+        3. 用户直接将 256 位 uifid 字符串传入 DOUYIN_COOKIE (无 = 号，长度 >= 32)
+        4. 从 session.cookies 中提取
         """
+        # 1. 优先读取独立环境变量
+        for env_key in ("DOUYIN_UIFID", "DY_UIFID"):
+            env_val = os.getenv(env_key, "").strip().strip("'\"")
+            if env_val:
+                return env_val
+
+        # 2. 从 self.cookie 中解析
         if self.cookie:
+            raw_cookie = self.cookie.strip().strip("'\"")
+            # 若用户直接把 uifid 填入 DOUYIN_COOKIE（纯 hash/token 字符串）
+            if '=' not in raw_cookie and len(raw_cookie) >= 32:
+                return raw_cookie
+
             for item in self.cookie.split(';'):
                 if '=' not in item:
                     continue
                 k, v = item.split('=', 1)
-                if k.strip().upper() == 'UIFID' and v.strip():
-                    return v.strip()
+                if k.strip().strip("'\"").upper() == 'UIFID' and v.strip().strip("'\""):
+                    return v.strip().strip("'\"")
+
+        # 3. 从 session.cookies 提取
         value = next((c.value for c in self.session.cookies
                       if c.name.upper() == 'UIFID' and not c.is_expired()
                       and c.domain in ('', 'douyin.com', '.douyin.com', 'www.douyin.com')), None)
         return value or ""
+
+    @staticmethod
+    def _sign_secsdk(url: str, uifid: str, ts: int | None = None) -> str:
+        """
+        为抖音核心 Web 接口规范化 query 并计算 x-secsdk-web-signature。
+        击穿 IDC 机房 IP 下 ArgusSecurityPlugin 报 Signature Not Found (403) 门禁。
+        明文结构：{uifid}_{timestamp}_{CONST}_{canonical_query}
+        """
+        if not uifid:
+            return url
+        if ts is None:
+            ts = int(time.time())
+
+        base, _, query = url.partition('?')
+        safe_chars = "!*'()"
+        parts = []
+        for pair in query.split('&'):
+            if not pair:
+                continue
+            if '=' in pair:
+                k, v = pair.split('=', 1)
+            else:
+                k, v = pair, ''
+            k = urllib.parse.unquote_plus(k, encoding='utf-8', errors='replace')
+            v = urllib.parse.unquote_plus(v, encoding='utf-8', errors='replace')
+            encoded_val = urllib.parse.quote(str(v), safe=safe_chars, encoding='utf-8')
+            parts.append(f"{k}={encoded_val}")
+        canon = '&'.join(parts)
+
+        names = [p.split('=', 1)[0] for p in canon.split('&') if p]
+        if 'uifid' not in names:
+            encoded_uifid = urllib.parse.quote(str(uifid), safe=safe_chars, encoding='utf-8')
+            canon = f"{canon}&uifid={encoded_uifid}" if canon else f"uifid={encoded_uifid}"
+
+        signed_query = f"{canon}&timestamp={ts}"
+        websign_const = "A96D855A08C0A9707F8BEF0D9A527E4E"
+        plain = f"{uifid}_{ts}_{websign_const}_{signed_query}"
+        signature = hashlib.md5(plain.encode('utf-8')).hexdigest()
+        return f"{base}?{signed_query}&x-secsdk-web-signature={signature}"
 
     def _get_ttwid(self):
         """
@@ -299,6 +358,9 @@ class DouyinParser(BaseParser):
                 logger.warning(f"生成 a_bogus 签名异常: {e}")
                 return None
 
+            if uifid:
+                api_url = self._sign_secsdk(api_url, uifid)
+
             try:
                 response = self.session.get(api_url, headers=headers, verify=False, timeout=8)
                 last_status = response.status_code
@@ -316,6 +378,13 @@ class DouyinParser(BaseParser):
                         self._terminal_filter_detail = data.get('filter_detail') or {"filter_reason": filter_reason, "detail_msg": filter_msg}
                         self.terminal_error = self._terminal_filter_detail
                         return None
+                elif last_status != 200:
+                    abort_data = response.headers.get("X-Whale-Throughput-Abort-Data")
+                    abort_info = f", abort={abort_data}" if abort_data else ""
+                    logger.warning(
+                        f"抖音 Web 接口响应异常 (attempt {attempt + 1}/{attempts}, status={last_status}{abort_info}): "
+                        f"{response.text[:200]}"
+                    )
             except Exception as e:
                 logger.debug(f"请求抖音接口异常 (第 {attempt + 1}/{attempts} 次): {e}")
 
