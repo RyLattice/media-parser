@@ -123,6 +123,10 @@ curl -X POST "http://localhost:5000/api/v1/parse" \
    - 单视频作品：主视频直链放在 `video_url` 中；
    - 多视频/分页视频/合集作品（如微信公众号多视频、网易云Event多视频）：除 `video_url` 返回首个主视频外，`video_list` 会返回全部视频直链数组（首项与 `video_url` 保持一致）。
 
+5. **试听截断标记 (`is_preview` / `full_duration`)**：
+   - 仅当平台下发截断的试听片段时出现（如汽水音乐 VIP 会员曲目匿名请求下发 30~60 秒试听）；
+   - `is_preview: true` 表示当前 `audio_url` 为试听片段，`full_duration` 为完整曲目时长（秒）。
+
 ---
 
 ## 4. 全局错误码定义 (Error Codes)
